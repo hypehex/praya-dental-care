@@ -12,21 +12,23 @@ model akun_pengguna {
   username       String          @unique @db.VarChar(50)
   password       String          @db.VarChar(255)
   status_akun    String          @db.VarChar(20)
-  dokter         dokter?
-  manajer_klinik manajer_klinik?
-  owner          owner?
-  pasien         pasien?
-  perawat        perawat?
+  id_owner       String?         @db.VarChar(10)
+  id_manajer     String?         @db.VarChar(10)
+  id_pasien      String?         @db.VarChar(10)
+  id_dokter      String?         @db.VarChar(10)
+  dokter         dokter?         @relation(fields: [id_dokter], references: [id_dokter], onDelete: NoAction, onUpdate: NoAction, map: "fk_akun_dokter")
+  manajer_klinik manajer_klinik? @relation(fields: [id_manajer], references: [id_manajer], onDelete: NoAction, onUpdate: NoAction, map: "fk_akun_manajer")
+  owner          owner?          @relation(fields: [id_owner], references: [id_owner], onDelete: NoAction, onUpdate: NoAction, map: "fk_akun_owner")
+  pasien         pasien?         @relation(fields: [id_pasien], references: [id_pasien], onDelete: NoAction, onUpdate: NoAction, map: "fk_akun_pasien")
   tampilan_menu  tampilan_menu[]
 }
 
 model dokter {
   id_dokter     String          @id @db.VarChar(10)
-  nama_dokter   String          @db.VarChar(100)
+  nama          String          @db.VarChar(100)
   no_hp         String          @db.VarChar(15)
-  spesialisasi  String          @db.VarChar(50)
-  id_akun       String          @unique @db.VarChar(10)
-  akun_pengguna akun_pengguna   @relation(fields: [id_akun], references: [id_akun], onDelete: NoAction, onUpdate: NoAction)
+  spesialis     String          @db.VarChar(50)
+  akun_pengguna akun_pengguna[]
   jadwal_dokter jadwal_dokter[]
   pemeriksaan   pemeriksaan[]
 }
@@ -71,42 +73,49 @@ model kunjungan {
   status_kunjungan  String        @db.VarChar(20)
   id_pasien         String        @db.VarChar(10)
   id_jadwal         String        @db.VarChar(10)
+  id_owner          String?       @db.VarChar(10)
+  owner             owner?        @relation(fields: [id_owner], references: [id_owner], onDelete: NoAction, onUpdate: NoAction, map: "fk_kunjungan_owner")
   jadwal_dokter     jadwal_dokter @relation(fields: [id_jadwal], references: [id_jadwal], onDelete: NoAction, onUpdate: NoAction)
   pasien            pasien        @relation(fields: [id_pasien], references: [id_pasien], onDelete: NoAction, onUpdate: NoAction)
+  pembayaran        pembayaran[]
   pemeriksaan       pemeriksaan[]
 }
 
 model manajer_klinik {
-  id_manajer    String        @id @db.VarChar(10)
-  nama          String        @db.VarChar(100)
-  no_hp         String        @db.VarChar(15)
-  id_akun       String        @unique @db.VarChar(10)
-  akun_pengguna akun_pengguna @relation(fields: [id_akun], references: [id_akun], onDelete: NoAction, onUpdate: NoAction)
+  id_manajer    String          @id @db.VarChar(10)
+  nama          String          @db.VarChar(100)
+  no_hp         String          @db.VarChar(15)
+  username      String          @db.VarChar(50)
+  password      String          @db.VarChar(255)
+  akun_pengguna akun_pengguna[]
   pembayaran    pembayaran[]
 }
 
 model owner {
-  id_owner      String         @id @db.VarChar(10)
-  nama_owner    String         @db.VarChar(255)
-  no_hp         String         @db.VarChar(15)
-  id_akun       String         @unique @db.VarChar(10)
+  id_owner      String          @id @db.VarChar(10)
+  nama_owner    String          @db.VarChar(255)
+  no_hp         String          @db.VarChar(15)
+  username      String          @db.VarChar(50)
+  password      String          @db.VarChar(255)
+  akun_pengguna akun_pengguna[]
   kritik_saran  kritik_saran[]
-  akun_pengguna akun_pengguna  @relation(fields: [id_akun], references: [id_akun], onDelete: NoAction, onUpdate: NoAction)
+  kunjungan     kunjungan[]
+  pemeriksaan   pemeriksaan[]
 }
 
 model pasien {
-  id_pasien                          String         @id @db.VarChar(10)
-  nama_pasien                        String         @db.VarChar(100)
-  tanggal_lahir                      DateTime       @db.Date
-  jenis_kelamin                      String         @db.VarChar(15)
-  alamat_jalan                       String         @db.VarChar(100)
-  no_hp                              String         @db.VarChar(15)
-  kode_pos                           String         @db.VarChar(5)
-  id_akun                            String         @unique @db.VarChar(10)
+  id_pasien                          String          @id @db.VarChar(10)
+  nama_pasien                        String          @db.VarChar(100)
+  tanggal_lahir                      DateTime        @db.Date
+  alamat_jalan                       String          @db.VarChar(100)
+  no_hp                              String          @db.VarChar(15)
+  kode_pos                           String          @db.VarChar(5)
+  username                           String          @db.VarChar(50)
+  password                           String          @db.VarChar(255)
+  akun_pengguna                      akun_pengguna[]
   kritik_saran                       kritik_saran[]
   kunjungan                          kunjungan[]
-  akun_pengguna                      akun_pengguna  @relation(fields: [id_akun], references: [id_akun], onDelete: NoAction, onUpdate: NoAction)
-  kode_pos_pasien_kode_posTokode_pos kode_pos       @relation("pasien_kode_posTokode_pos", fields: [kode_pos], references: [kode_pos], onDelete: NoAction, onUpdate: NoAction)
+  kode_pos_pasien_kode_posTokode_pos kode_pos        @relation("pasien_kode_posTokode_pos", fields: [kode_pos], references: [kode_pos], onDelete: NoAction, onUpdate: NoAction)
   pembayaran                         pembayaran[]
 }
 
@@ -115,9 +124,11 @@ model pembayaran {
   jumlah_pembayaran  Decimal        @db.Decimal(12, 2)
   metode_pembayaran  String         @db.VarChar(20)
   tanggal_pembayaran DateTime       @db.Date
-  status_pembayaran  String         @db.VarChar(20)
+  status_pembayaran  Int
   id_manajer         String         @db.VarChar(10)
   id_pasien          String         @db.VarChar(10)
+  id_kunjungan       String?        @db.VarChar(10)
+  kunjungan          kunjungan?     @relation(fields: [id_kunjungan], references: [id_kunjungan], onDelete: NoAction, onUpdate: NoAction, map: "fk_pembayaran_kunjungan")
   manajer_klinik     manajer_klinik @relation(fields: [id_manajer], references: [id_manajer], onDelete: NoAction, onUpdate: NoAction)
   pasien             pasien         @relation(fields: [id_pasien], references: [id_pasien], onDelete: NoAction, onUpdate: NoAction)
 }
@@ -131,6 +142,8 @@ model pemeriksaan {
   id_kunjungan        String        @db.VarChar(10)
   id_dokter           String        @db.VarChar(10)
   id_perawat          String        @db.VarChar(10)
+  id_owner            String?       @db.VarChar(10)
+  owner               owner?        @relation(fields: [id_owner], references: [id_owner], onDelete: NoAction, onUpdate: NoAction, map: "fk_pemeriksaan_owner")
   dokter              dokter        @relation(fields: [id_dokter], references: [id_dokter], onDelete: NoAction, onUpdate: NoAction)
   kunjungan           kunjungan     @relation(fields: [id_kunjungan], references: [id_kunjungan], onDelete: NoAction, onUpdate: NoAction)
   perawat             perawat       @relation(fields: [id_perawat], references: [id_perawat], onDelete: NoAction, onUpdate: NoAction)
@@ -139,12 +152,12 @@ model pemeriksaan {
 }
 
 model perawat {
-  id_perawat    String        @id @db.VarChar(10)
-  nama_perawat  String        @db.VarChar(100)
-  no_hp         String        @db.VarChar(15)
-  id_akun       String        @unique @db.VarChar(10)
-  pemeriksaan   pemeriksaan[]
-  akun_pengguna akun_pengguna @relation(fields: [id_akun], references: [id_akun], onDelete: NoAction, onUpdate: NoAction)
+  id_perawat   String        @id @db.VarChar(10)
+  nama_perawat String        @db.VarChar(100)
+  no_hp        String        @db.VarChar(15)
+  username     String        @db.VarChar(50)
+  password     String        @db.VarChar(255)
+  pemeriksaan  pemeriksaan[]
 }
 
 model rekam_medis {
@@ -160,7 +173,7 @@ model rekam_medis {
 
 model resep {
   id_resep       String      @id @db.VarChar(10)
-  no_resep       String      @db.VarChar(20)
+  no_resep       String      @unique(map: "resep_no_resep_uk") @db.VarChar(20)
   tanggal_resep  DateTime    @db.Date
   isi_resep      String      @db.VarChar(255)
   id_rekam_medis String      @db.VarChar(10)
