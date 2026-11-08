@@ -27,8 +27,16 @@ function makeId(prefix: string) {
 export async function loginAction(role: LoginRole, formData: FormData) {
   const username = formText(formData, "username").trim();
   const password = formText(formData, "password");
+  const requestedDestination = formText(formData, "next");
+  const destination = role === "pasien" && requestedDestination === "/dashboard/pasien/booking-kunjungan/tambah"
+    ? requestedDestination
+    : `/dashboard/${role}`;
+  const loginPath = destination === requestedDestination
+    ? `/masuk/${role}?next=${encodeURIComponent(destination)}`
+    : `/masuk/${role}`;
+  const loginErrorPath = (error: string) => `${loginPath}${loginPath.includes("?") ? "&" : "?"}error=${error}`;
   if (!username || !password || username.length > 50 || password.length > 255) {
-    redirect(`/masuk/${role}?error=credentials`);
+    redirect(loginErrorPath("credentials"));
   }
 
   let user;
@@ -36,25 +44,25 @@ export async function loginAction(role: LoginRole, formData: FormData) {
     user = await authenticateRole(role, username, password);
   } catch (error) {
     if (error instanceof AuthConfigurationError) {
-      redirect(`/masuk/${role}?error=configuration`);
+      redirect(loginErrorPath("configuration"));
     }
     if (isDatabaseUnavailable(error)) {
-      redirect(`/masuk/${role}?error=database`);
+      redirect(loginErrorPath("database"));
     }
     throw error;
   }
-  if (!user) redirect(`/masuk/${role}?error=credentials`);
+  if (!user) redirect(loginErrorPath("credentials"));
 
   try {
     await createSession(user);
   } catch (error) {
     if (error instanceof AuthConfigurationError) {
-      redirect(`/masuk/${role}?error=configuration`);
+      redirect(loginErrorPath("configuration"));
     }
     throw error;
   }
 
-  redirect(`/dashboard/${role}`);
+  redirect(destination);
 }
 
 export async function logoutAction() {

@@ -15,9 +15,9 @@ export default async function LoginPage({
   searchParams,
 }: {
   params: Promise<{ role: string }>;
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; next?: string }>;
 }) {
-  const [{ role: requestedRole }, { error }] = await Promise.all([
+  const [{ role: requestedRole }, { error, next }] = await Promise.all([
     params,
     searchParams,
   ]);
@@ -27,5 +27,8 @@ export default async function LoginPage({
     notFound();
   }
 
-  return <RoleLoginPage role={role} error={error} />;
+  const safeNext = requestedRole === "pasien" && next === "/dashboard/pasien/booking-kunjungan/tambah"
+    ? next
+    : undefined;
+  return <RoleLoginPage role={role} error={error} next={safeNext} />;
 }

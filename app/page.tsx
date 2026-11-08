@@ -27,7 +27,7 @@ export default async function Home() {
           <Link className="button-primary" href="/jadwal-dokter">
             Lihat Jadwal Dokter
           </Link>
-          <Link className="button-secondary" href="/masuk/pasien">
+          <Link className="button-secondary" href="/masuk/pasien?next=/dashboard/pasien/booking-kunjungan/tambah">
             Booking Kunjungan
           </Link>
         </div>

@@ -19,6 +19,17 @@ function getWeekday(date: string) {
   return weekdays[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
 }
 
+function nextDateForWeekday(day?: string) {
+  const target = weekdays.findIndex(
+    (weekday) => weekday.toLocaleLowerCase("id") === day?.trim().toLocaleLowerCase("id"),
+  );
+  if (target < 0) return "";
+  const date = new Date();
+  date.setUTCHours(0, 0, 0, 0);
+  date.setUTCDate(date.getUTCDate() + ((target - date.getUTCDay() + 7) % 7));
+  return date.toISOString().slice(0, 10);
+}
+
 function availableTimes(schedule?: PortalFormOption) {
   if (!schedule?.startTime || !schedule.endTime) return [];
   const [startHour, startMinute] = schedule.startTime.split(":").map(Number);
@@ -52,19 +63,20 @@ export function BookingScheduleFields({
   initialTime?: string;
   scheduleField: string;
 }) {
+  const initialSchedule = schedules.find((schedule) => schedule.value === initialScheduleId);
   const [doctorId, setDoctorId] = useState(initialDoctorId ?? "");
-  const [date, setDate] = useState(initialDate ?? "");
+  const [date, setDate] = useState(initialDate ?? nextDateForWeekday(initialSchedule?.day));
   const [scheduleId, setScheduleId] = useState(initialScheduleId ?? "");
-  const [time, setTime] = useState(initialTime ?? "");
+  const [time, setTime] = useState(initialTime ?? availableTimes(initialSchedule)[0] ?? "");
   const selectedDoctor = doctors?.find((doctor) => doctor.value === doctorId);
   const doctorIsFixed = !!initialDoctorId;
   const weekday = getWeekday(date);
   const availableSchedules = schedules.filter(
     (schedule) =>
-      (!doctors || schedule.doctorId === doctorId) &&
+      (!doctors || !doctorId || schedule.doctorId === doctorId) &&
       (!weekday || schedule.day?.toLocaleLowerCase("id") === weekday.toLocaleLowerCase("id")),
   );
-  const selectedSchedule = availableSchedules.find(
+  const selectedSchedule = schedules.find(
     (schedule) => schedule.value === scheduleId,
   );
   const times = availableTimes(selectedSchedule);
@@ -129,19 +141,24 @@ export function BookingScheduleFields({
         <span>{scheduleField}</span>
         <select
           aria-label={scheduleField}
-          disabled={!doctorId && !!doctors || !weekday}
           name={scheduleField}
           onChange={(event) => {
-            setScheduleId(event.target.value);
-            setTime("");
+            const nextScheduleId = event.target.value;
+            const nextSchedule = schedules.find((schedule) => schedule.value === nextScheduleId);
+            setScheduleId(nextScheduleId);
+            if (nextSchedule?.doctorId) {
+              setDoctorId(nextSchedule.doctorId);
+            }
+            if (!date || getWeekday(date).toLocaleLowerCase("id") !== nextSchedule?.day?.trim().toLocaleLowerCase("id")) {
+              setDate(nextDateForWeekday(nextSchedule?.day));
+            }
+            setTime(availableTimes(nextSchedule)[0] ?? "");
           }}
           required
           value={scheduleId}
         >
           <option disabled value="">
-            {!weekday
-              ? "Pilih tanggal kunjungan terlebih dahulu"
-              : !availableSchedules.length
+            {!availableSchedules.length
                 ? `Tidak ada jadwal praktik pada hari ${weekday}`
                 : "Pilih jadwal praktik"}
           </option>
@@ -152,26 +169,28 @@ export function BookingScheduleFields({
           ))}
         </select>
       </label>
-      <label className="portal-field">
-        <span>Waktu Kunjungan</span>
-        <select
-          aria-label="Waktu Kunjungan"
-          disabled={!selectedSchedule}
-          name="Waktu Kunjungan"
-          onChange={(event) => setTime(event.target.value)}
-          required
-          value={time}
-        >
-          <option disabled value="">
-            {selectedSchedule ? "Pilih waktu kunjungan" : "Pilih jadwal praktik terlebih dahulu"}
-          </option>
-          {timeOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
+      <fieldset className="booking-time-field">
+        <legend>Waktu Kunjungan</legend>
+        {timeOptions.length ? (
+          <div className="booking-time-options">
+            {timeOptions.map((option) => (
+              <label className="booking-time-option" key={option}>
+                <input
+                  checked={time === option}
+                  name="Waktu Kunjungan"
+                  onChange={(event) => setTime(event.target.value)}
+                  required
+                  type="radio"
+                  value={option}
+                />
+                <span>{option}</span>
+              </label>
+            ))}
+          </div>
+        ) : (
+          <p className="portal-notice">Pilih jadwal praktik untuk menampilkan pilihan waktu kunjungan.</p>
+        )}
+      </fieldset>
     </>
   );
 }

@@ -16,6 +16,21 @@ export type PortalRow = {
   values?: Record<string, string>;
   detailHref?: string;
   patientDashboard?: PatientDashboardData;
+  doctorDashboard?: DoctorDashboardData;
+  summaryDashboard?: {
+    label: string;
+    count: number;
+    section: string;
+  }[];
+};
+
+export type DoctorDashboardData = {
+  todayVisitCount: number;
+  waitingExaminationCount: number;
+  draftRecordCount: number;
+  prescriptionCount: number;
+  visits: { id: string; patient: string; time: string; status: string }[];
+  schedules: { id: string; day: string; time: string; status: string }[];
 };
 
 export type PatientDashboardData = {
@@ -102,6 +117,80 @@ export async function loadPortalRows(
 ): Promise<PortalRow[]> {
   const section = screen.section;
   const parent = screen.parent;
+
+  if (screen.kind === "dashboard" && ["manajer-klinik", "owner"].includes(role.slug)) {
+    const today = new Date(`${clinicToday()}T00:00:00.000Z`);
+    const [patientCount, visitCount, waitingVisitCount, examCount, pendingRegistrationCount, pendingPaymentCount] =
+      await Promise.all([
+        prisma.pasien.count(),
+        prisma.kunjungan.count(),
+        prisma.kunjungan.count({ where: { status_kunjungan: "Menunggu" } }),
+        prisma.pemeriksaan.count({ where: { tanggal_pemeriksaan: { gte: today } } }),
+        prisma.akun_pengguna.count({ where: { id_pasien: { not: null }, status_akun: "Menunggu" } }),
+        prisma.pembayaran.count({ where: { status_pembayaran: 2 } }),
+      ]);
+    const summaryDashboard = role.slug === "manajer-klinik"
+      ? [
+          { label: "Total pasien", count: patientCount, section: "data-pasien" },
+          { label: "Registrasi menunggu", count: pendingRegistrationCount, section: "pengajuan-registrasi" },
+          { label: "Booking menunggu", count: waitingVisitCount, section: "kunjungan-pasien" },
+          { label: "Pembayaran menunggu", count: pendingPaymentCount, section: "pembayaran" },
+        ]
+      : [
+          { label: "Total kunjungan", count: visitCount, section: "rekap-pelayanan" },
+          { label: "Pemeriksaan hari ini", count: examCount, section: "rekap-pelayanan" },
+          { label: "Total pasien", count: patientCount, section: "informasi-operasional" },
+        ];
+    return [{ id: `${role.slug}-dashboard`, cells: [], summaryDashboard }];
+  }
+
+  if (role.slug === "dokter" && screen.kind === "dashboard") {
+    const doctorId = identity.profileId;
+    const today = new Date(`${clinicToday()}T00:00:00.000Z`);
+    const tomorrow = new Date(today);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    const [todayVisitCount, examinationVisitCount, draftRecordCount, prescriptionCount, visits, schedules] = await Promise.all([
+      prisma.kunjungan.count({
+        where: { jadwal_dokter: { is: { id_dokter: doctorId } }, tanggal_kunjungan: { gte: today, lt: tomorrow } },
+      }),
+      prisma.kunjungan.count({
+        where: {
+          jadwal_dokter: { is: { id_dokter: doctorId } },
+          status_kunjungan: "Pemeriksaan",
+        },
+      }),
+      prisma.rekam_medis.count({
+        where: { pemeriksaan: { is: { id_dokter: doctorId } }, status_validasi: { not: "Valid" } },
+      }),
+      prisma.resep.count({
+        where: { rekam_medis: { pemeriksaan: { is: { id_dokter: doctorId } } } },
+      }),
+      prisma.kunjungan.findMany({
+        where: { jadwal_dokter: { is: { id_dokter: doctorId } }, tanggal_kunjungan: { gte: today, lt: tomorrow } },
+        select: { id_kunjungan: true, waktu_kunjungan: true, status_kunjungan: true, pasien: { select: { nama_pasien: true } } },
+        orderBy: { waktu_kunjungan: "asc" },
+        take: 2,
+      }),
+      prisma.jadwal_dokter.findMany({
+        where: { id_dokter: doctorId },
+        select: { id_jadwal: true, hari: true, jam_mulai: true, jam_selesai: true, status_jadwal: true },
+        orderBy: [{ hari: "asc" }, { jam_mulai: "asc" }],
+        take: 2,
+      }),
+    ]);
+    return [{
+      id: `${role.slug}-dashboard`,
+      cells: [],
+      doctorDashboard: {
+        todayVisitCount,
+        waitingExaminationCount: examinationVisitCount,
+        draftRecordCount,
+        prescriptionCount,
+        visits: visits.map((visit) => ({ id: visit.id_kunjungan, patient: visit.pasien.nama_pasien, time: timeLabel(visit.waktu_kunjungan), status: visit.status_kunjungan })),
+        schedules: schedules.map((schedule) => ({ id: schedule.id_jadwal, day: schedule.hari, time: `${timeLabel(schedule.jam_mulai)}–${timeLabel(schedule.jam_selesai)}`, status: schedule.status_jadwal })),
+      },
+    }];
+  }
 
   if (role.slug === "pasien" && screen.kind === "dashboard") {
     const today = new Date(`${clinicToday()}T00:00:00.000Z`);
@@ -201,6 +290,34 @@ export async function loadPortalRows(
           : null,
       },
     }];
+  }
+
+  if (role.slug === "pasien" && parent === "profil") {
+    const patient = await prisma.pasien.findUnique({
+      where: { id_pasien: identity.profileId },
+      select: {
+        id_pasien: true,
+        nama_pasien: true,
+        tanggal_lahir: true,
+        alamat_jalan: true,
+        no_hp: true,
+        kode_pos: true,
+        username: true,
+      },
+    });
+    return patient ? [{
+      ...row(role, screen, patient.id_pasien, [
+        patient.id_pasien, patient.nama_pasien, dateLabel(patient.tanggal_lahir), patient.no_hp,
+        patient.alamat_jalan, patient.kode_pos, patient.username,
+      ]),
+      values: {
+        "Nama Pasien": patient.nama_pasien,
+        "Tanggal Lahir": patient.tanggal_lahir.toISOString().slice(0, 10),
+        "Alamat Jalan": patient.alamat_jalan,
+        "No. HP": patient.no_hp,
+        "Kode Pos": patient.kode_pos,
+      },
+    }] : [];
   }
 
   if (
@@ -365,19 +482,15 @@ export async function loadPortalRows(
         no_hp: true,
         kode_pos: true,
         username: true,
+        akun_pengguna: { select: { status_akun: true }, take: 1 },
       },
       orderBy: { nama_pasien: "asc" },
     });
     return patients.map((patient) => ({
-      ...row(role, screen, patient.id_pasien, [
-        patient.id_pasien,
-        patient.nama_pasien,
-        dateLabel(patient.tanggal_lahir),
-        patient.no_hp,
-        patient.alamat_jalan,
-        patient.kode_pos,
-        patient.username,
-      ]),
+      ...row(role, screen, patient.id_pasien, screen.kind === "detail" ? [
+        patient.id_pasien, patient.nama_pasien, dateLabel(patient.tanggal_lahir), patient.no_hp,
+        patient.alamat_jalan, patient.kode_pos, patient.username,
+      ] : [patient.nama_pasien, patient.id_pasien, patient.no_hp, patient.akun_pengguna[0]?.status_akun ?? "Terdaftar"]),
       values: {
         "Nama Pasien": patient.nama_pasien,
         "Tanggal Lahir": patient.tanggal_lahir.toISOString().slice(0, 10),
@@ -485,13 +598,21 @@ export async function loadPortalRows(
                 `${timeLabel(schedule.jam_mulai)}–${timeLabel(schedule.jam_selesai)}`,
                 schedule.status_jadwal,
               ]
-            : [
-                schedule.dokter.nama,
-                schedule.hari,
-                `${timeLabel(schedule.jam_mulai)}–${timeLabel(schedule.jam_selesai)}`,
-                String(schedule._count.kunjungan),
-                schedule.status_jadwal,
-              ];
+            : role.slug === "dokter"
+              ? [
+                  schedule.hari,
+                  `${timeLabel(schedule.jam_mulai)}–${timeLabel(schedule.jam_selesai)}`,
+                  schedule.dokter.spesialis,
+                  String(schedule._count.kunjungan),
+                  schedule.status_jadwal,
+                ]
+              : [
+                  schedule.dokter.nama,
+                  schedule.hari,
+                  `${timeLabel(schedule.jam_mulai)}–${timeLabel(schedule.jam_selesai)}`,
+                  String(schedule._count.kunjungan),
+                  schedule.status_jadwal,
+                ];
       return {
         ...row(
           role,
@@ -803,22 +924,48 @@ export async function loadPortalRows(
         pemeriksaan: {
           select: {
             dokter: { select: { nama: true } },
+            perawat: { select: { nama_perawat: true } },
+            keluhan: true,
+            hasil_pemeriksaan: true,
+            catatan_pemeriksaan: true,
+            tindakan: { select: { nama_tindakan: true } },
             kunjungan: { select: { pasien: { select: { nama_pasien: true } } } },
           },
         },
+        resep: { select: { id_resep: true } },
       },
       orderBy: { tanggal_rekam_medis: "desc" },
     });
-    return records.map((record) => ({
-      values: { Diagnosis: record.diagnosis, Catatan: record.catatan ?? "" },
-      ...row(role, screen, record.id_rekam_medis, [
+    return records.map((record) => {
+      const detailCells = [
         record.pemeriksaan.kunjungan.pasien.nama_pasien,
         record.id_rekam_medis,
         dateLabel(record.tanggal_rekam_medis),
+        record.pemeriksaan.dokter.nama,
+        record.pemeriksaan.perawat.nama_perawat,
+        record.pemeriksaan.keluhan,
+        record.pemeriksaan.hasil_pemeriksaan,
         record.diagnosis,
+        record.pemeriksaan.tindakan.map((item) => item.nama_tindakan).join(", ") || "-",
+        [record.pemeriksaan.catatan_pemeriksaan, record.catatan].filter(Boolean).join("; ") || "-",
         record.status_validasi,
-      ]),
-    }));
+      ];
+      const listCells = [
+        record.pemeriksaan.kunjungan.pasien.nama_pasien,
+        record.id_rekam_medis,
+        dateLabel(record.tanggal_rekam_medis),
+        `${record.diagnosis} / ${record.pemeriksaan.tindakan.map((item) => item.nama_tindakan).join(", ") || "-"}`,
+        record.status_validasi,
+      ];
+      return {
+        values: {
+          Diagnosis: record.diagnosis,
+          Catatan: record.catatan ?? "",
+          "Jumlah Resep": String(record.resep.length),
+        },
+        ...row(role, screen, record.id_rekam_medis, screen.kind === "detail" ? detailCells : listCells),
+      };
+    });
   }
 
   if (parent === "resep") {
@@ -842,35 +989,48 @@ export async function loadPortalRows(
         no_resep: true,
         tanggal_resep: true,
         isi_resep: true,
+        rekam_medis: {
+          select: {
+            id_rekam_medis: true,
+            pemeriksaan: { select: { kunjungan: { select: { pasien: { select: { nama_pasien: true } } } } } },
+          },
+        },
       },
       orderBy: { tanggal_resep: "desc" },
     });
     return prescriptions.map((prescription) => ({
       values: { "Nomor Resep": prescription.no_resep, "Tanggal Resep": prescription.tanggal_resep.toISOString().slice(0,10), "Isi Resep": prescription.isi_resep },
-      ...row(role, screen, prescription.id_resep, [
+      ...row(role, screen, prescription.id_resep, screen.kind === "detail" ? [
+        prescription.rekam_medis.pemeriksaan.kunjungan.pasien.nama_pasien,
+        prescription.rekam_medis.id_rekam_medis,
         prescription.no_resep,
         dateLabel(prescription.tanggal_resep),
         prescription.isi_resep,
-      ]),
+      ] : [prescription.no_resep, dateLabel(prescription.tanggal_resep), prescription.isi_resep]),
     }));
   }
 
   if (parent === "informasi-klinik") {
-    const records = await prisma.informasi_klinik.findMany({ where: recordId ? { id_informasi: recordId } : {}, orderBy: { tanggal_publikasi: "desc" } });
+    const records = await prisma.informasi_klinik.findMany({
+      where: {
+        ...(recordId ? { id_informasi: recordId } : {}),
+        ...(role.slug === "pasien" ? { tanggal_publikasi: { lte: new Date(`${clinicToday()}T23:59:59.999Z`) } } : {}),
+      },
+      orderBy: { tanggal_publikasi: "desc" },
+    });
     return records.map((item) => ({
       ...row(role, screen, item.id_informasi, [item.judul, dateLabel(item.tanggal_publikasi), screen.kind === "list" ? (item.tanggal_publikasi.toISOString().slice(0,10) <= clinicToday() ? "Terpublikasi" : "Terjadwal") : item.isi_informasi]),
       values: { Judul: item.judul, "Isi Informasi": item.isi_informasi, "Tanggal Publikasi": item.tanggal_publikasi.toISOString().slice(0,10) },
     }));
   }
-  if (parent === "data-pelayanan") {
+  if (parent === "data-pelayanan" || parent === "layanan") {
     const services = await prisma.pelayanan.findMany({ where: recordId ? { id_pelayanan: recordId } : {}, orderBy: { nama_pelayanan: "asc" } });
     return services.map((service) => ({
-      ...row(role, screen, service.id_pelayanan, [
-        service.id_pelayanan,
+      ...row(role, screen, service.id_pelayanan, role.slug === "pasien" ? [
         service.nama_pelayanan,
         service.deskripsi,
-        new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(Number(service.biaya)),
-      ]),
+        new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(service.biaya)),
+      ] : [service.id_pelayanan, service.nama_pelayanan, service.deskripsi, new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR" }).format(Number(service.biaya))]),
       values: {
         "Nama Pelayanan": service.nama_pelayanan,
         Deskripsi: service.deskripsi,

@@ -3,6 +3,7 @@ import { connection } from "next/server";
 import { prisma } from "../_lib/prisma";
 import { formatTime24 } from "../_lib/workflow";
 import { PublicHeader } from "../_components/public-header";
+import Link from "next/link";
 
 export const instant = false;
 
@@ -80,11 +81,18 @@ async function DoctorSchedules() {
             </strong>
           </div>
         </div>
-        <p
-          className={`doctor-availability${schedule.status_jadwal.toLowerCase() === "tersedia" ? " is-available" : ""}`}
-        >
-          {schedule.status_jadwal}
-        </p>
+        <div className="doctor-card-actions">
+          <p
+            className={`doctor-availability${schedule.status_jadwal.toLowerCase() === "tersedia" ? " is-available" : ""}`}
+          >
+            {schedule.status_jadwal}
+          </p>
+          {schedule.status_jadwal.trim().toLocaleLowerCase("id") === "aktif" ? (
+            <Link className="doctor-booking-link" href="/masuk/pasien?next=/dashboard/pasien/booking-kunjungan/tambah">
+              Masuk untuk Booking
+            </Link>
+          ) : null}
+        </div>
       </article>
     );
   });

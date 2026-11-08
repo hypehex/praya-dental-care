@@ -84,6 +84,28 @@ export async function reviewPatientRegistrationAction(formData: FormData) {
   redirect(portalHref("manajer-klinik", destination));
 }
 
+export async function reviewBookingAction(formData: FormData) {
+  await requireRoleSession("manajer-klinik");
+  const visitId = formText(formData, "visitId");
+  const decision = formText(formData, "decision");
+  const status = decision === "approve" ? "Dikonfirmasi" : decision === "reject" ? "Ditolak" : null;
+  if (!visitId || !status) {
+    redirect("/dashboard/manajer-klinik/kunjungan-pasien?error=invalid-data");
+  }
+  try {
+    const updated = await prisma.kunjungan.updateMany({
+      where: { id_kunjungan: visitId, status_kunjungan: "Menunggu" },
+      data: { status_kunjungan: status },
+    });
+    if (!updated.count) {
+      redirect("/dashboard/manajer-klinik/kunjungan-pasien?error=stale");
+    }
+  } catch (error) {
+    redirectForError("/dashboard/manajer-klinik/kunjungan-pasien", error);
+  }
+  redirect("/dashboard/manajer-klinik/kunjungan-pasien");
+}
+
 export async function submitFeedbackAction(formData: FormData) {
   const identity = await requireRoleSession("pasien");
   const content = formText(formData, "Isi Kritik dan Saran");
@@ -198,7 +220,7 @@ export async function bookVisitAction(formData: FormData) {
       select: { id_kunjungan: true },
     });
     if (existingVisit) {
-      redirect("/dashboard/pasien/booking-kunjungan/tambah/periksa-jadwal");
+      redirect("/dashboard/pasien/booking-kunjungan/tambah?error=slot-unavailable");
     }
 
     await prisma.kunjungan.create({
@@ -307,7 +329,7 @@ export async function updateBookingAction(formData: FormData) {
       select: { id_kunjungan: true },
     });
     if (duplicate) {
-      redirect("/dashboard/pasien/booking-kunjungan/ubah?error=stale");
+      redirect(`/dashboard/pasien/booking-kunjungan/ubah?id=${encodeURIComponent(visit.id_kunjungan)}&error=slot-unavailable`);
     }
 
     const updated = await prisma.kunjungan.updateMany({
@@ -419,6 +441,28 @@ export async function savePortalFormAction(
   formData: FormData,
 ) {
   const identity = await requireRoleSession(role);
+
+  if (role === "pasien" && section === "profil/edit") {
+    const name = formText(formData, "Nama Pasien");
+    const birthDateValue = formText(formData, "Tanggal Lahir");
+    const address = formText(formData, "Alamat Jalan");
+    const phone = formText(formData, "No. HP");
+    const postalCode = formText(formData, "Kode Pos");
+    const birthDate = new Date(`${birthDateValue}T00:00:00.000Z`);
+    if (!name || name.length > 100 || !validDate(birthDateValue) || birthDate > new Date(clinicToday()) || !address || address.length > 100 || !phone || phone.length > 15 || !postalCode || postalCode.length > 10) {
+      redirect("/dashboard/pasien/profil/edit?error=invalid-data");
+    }
+    try {
+      const updated = await prisma.pasien.updateMany({
+        where: { id_pasien: identity.profileId },
+        data: { nama_pasien: name, tanggal_lahir: birthDate, alamat_jalan: address, no_hp: phone, kode_pos: postalCode },
+      });
+      if (!updated.count) redirect("/dashboard/pasien/profil/edit?error=stale");
+    } catch (error) {
+      redirectForError("/dashboard/pasien/profil/edit", error);
+    }
+    redirect("/dashboard/pasien/profil");
+  }
 
   if (role === "manajer-klinik" && section === "data-pasien/edit") {
     const patientId = formText(formData, "recordId");

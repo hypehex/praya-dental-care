@@ -41,9 +41,11 @@ export type LoginRole = (typeof loginRoles)[number];
 export function RoleLoginPage({
   role,
   error,
+  next,
 }: {
   role: LoginRole;
   error?: string;
+  next?: string;
 }) {
   const isPatient = role.slug === "pasien";
   const errorMessage =
@@ -78,6 +80,7 @@ export function RoleLoginPage({
         <h1 id="login-title">Masuk sebagai {role.label}</h1>
 
         <form action={loginAction.bind(null, role.slug)} className="login-form">
+          {isPatient && next ? <input name="next" type="hidden" value={next} /> : null}
           <div className="login-field">
             <label htmlFor="login-username">
               {isPatient ? "Username atau Email" : "Username"}

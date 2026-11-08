@@ -8,6 +8,9 @@ import { prisma } from "../../../_lib/prisma";
 
 const menuItems = [
   { label: "Dashboard", href: "/dashboard/pasien" },
+  { label: "Profil Saya", href: "/dashboard/pasien/profil" },
+  { label: "Informasi Klinik", href: "/dashboard/pasien/informasi-klinik" },
+  { label: "Layanan", href: "/dashboard/pasien/layanan" },
   { label: "Booking & Kunjungan", href: "/dashboard/pasien/booking-kunjungan" },
   { label: "Data Dokter", href: "/dashboard/pasien/data-dokter" },
   { label: "Konfirmasi Kedatangan", href: "/dashboard/pasien/konfirmasi-kedatangan" },
@@ -16,41 +19,6 @@ const menuItems = [
   { label: "Kritik & Saran", href: "/dashboard/pasien/kritik-saran" },
 ];
 
-const paymentExamples = [
-  {
-    key: "belum-dibayar",
-    id: "CONTOH-TG-001",
-    status: 0,
-    amount: 300000,
-    title: "Belum dibayar",
-    description: "Tagihan masih perlu dibayar. Pilih pembayaran tunai di kasir atau transfer bank.",
-  },
-  {
-    key: "menunggu-verifikasi",
-    id: "CONTOH-TG-002",
-    status: 2,
-    amount: 300000,
-    title: "Menunggu verifikasi",
-    description: "Bukti transfer sudah dikirim dan sedang diperiksa oleh petugas klinik.",
-  },
-  {
-    key: "ditolak",
-    id: "CONTOH-TG-003",
-    status: 3,
-    amount: 300000,
-    title: "Ditolak",
-    description: "Bukti perlu diperiksa dan diunggah ulang pada tagihan yang sebenarnya.",
-  },
-  {
-    key: "lunas",
-    id: "CONTOH-TG-004",
-    status: 1,
-    amount: 300000,
-    title: "Lunas",
-    description: "Pembayaran sudah diterima oleh klinik.",
-  },
-] as const;
-
 export const instant = false;
 
 export const metadata: Metadata = {
@@ -58,16 +26,8 @@ export const metadata: Metadata = {
   description: "Lihat tagihan dan status pembayaran Anda di Praya Dental Care.",
 };
 
-export default async function PembayaranPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ contoh?: string | string[] }>;
-}) {
+export default async function PembayaranPage() {
   const identity = await requireRoleSession("pasien");
-  const { contoh } = await searchParams;
-  const example = typeof contoh === "string"
-    ? paymentExamples.find((item) => item.key === contoh)
-    : undefined;
   let payments: {
     id_pembayaran: string;
     jumlah_pembayaran: number;
@@ -152,8 +112,8 @@ export default async function PembayaranPage({
       <main className="main-content">
         <header className="page-header">
           <div className="page-heading">
-            <h1>{example ? "Contoh Detail Pembayaran" : "Pembayaran"}</h1>
-            <p>{example ? "Simulasi tampilan status tagihan pasien" : "Tagihan dan status pembayaran"}</p>
+            <h1>Pembayaran</h1>
+            <p>Tagihan dan status pembayaran aktual akun Anda</p>
           </div>
           <div className="account-pill">
             <Image
@@ -174,47 +134,7 @@ export default async function PembayaranPage({
         </header>
 
         <section aria-labelledby="bill-list-title" className="bill-section">
-          <h2 id="bill-list-title">{example ? "Simulasi Status Tagihan" : "Daftar Tagihan"}</h2>
-          {example ? (
-            <div className="patient-payment-demo-detail">
-              <article className="patient-demo-invoice">
-                <p className="patient-demo-label">CONTOH SIMULASI · BUKAN TAGIHAN ASLI</p>
-                <h2>Tambal Gigi</h2>
-                <dl>
-                  <div><dt>Nomor tagihan</dt><dd>{example.id}</dd></div>
-                  <div><dt>Tanggal layanan</dt><dd>16 November 2026</dd></div>
-                  <div><dt>Dokter</dt><dd>drg. Siti Aminah</dd></div>
-                  <div><dt>Status</dt><dd><span className={`bill-status bill-status-${example.status}`}>{paymentStatuses[example.status]}</span></dd></div>
-                </dl>
-                <div className="patient-demo-total">
-                  <strong>Total tagihan</strong>
-                  <strong>{new Intl.NumberFormat("id-ID", {
-                    style: "currency",
-                    currency: "IDR",
-                    maximumFractionDigits: 0,
-                  }).format(example.amount)}</strong>
-                </div>
-              </article>
-              <aside className="patient-demo-explanation">
-                <h2>{example.title}</h2>
-                <p>{example.description}</p>
-                {example.status === 0 ? (
-                  <div className="patient-demo-methods">
-                    <div><strong>Tunai</strong><span>Bayar langsung di kasir klinik.</span></div>
-                    <div><strong>Transfer bank</strong><span>Unggah bukti transfer pada tagihan asli.</span></div>
-                  </div>
-                ) : null}
-                {example.status === 3 ? (
-                  <p className="patient-demo-warning">Pada tagihan asli, tombol unggah ulang akan tersedia setelah bukti ditolak.</p>
-                ) : null}
-                <p className="patient-demo-disclaimer">Ini hanya contoh tampilan. Tidak ada pembayaran atau data yang disimpan.</p>
-                <Link className="portal-button portal-button-primary" href="/dashboard/pasien/pembayaran">
-                  Kembali ke Daftar Tagihan
-                </Link>
-              </aside>
-            </div>
-          ) : (
-            <>
+          <h2 id="bill-list-title">Daftar Tagihan</h2>
               <div aria-label="Daftar tagihan" className="bill-list patient-bill-list">
                 {databaseUnavailable ? (
                   <p className="bill-empty-state" role="alert">
@@ -254,31 +174,6 @@ export default async function PembayaranPage({
                   <p className="bill-empty-state">Belum ada tagihan untuk akun ini.</p>
                 )}
               </div>
-              <section aria-labelledby="payment-examples-title" className="patient-payment-examples">
-                <div className="patient-examples-heading">
-                  <div>
-                    <h2 id="payment-examples-title">Contoh Status Tagihan</h2>
-                    <p>Simulasi untuk melihat tampilan tiap status. Bukan data tagihan akun Anda.</p>
-                  </div>
-                  <span>SIMULASI</span>
-                </div>
-                <div className="patient-example-grid">
-                  {paymentExamples.map((item) => (
-                    <Link
-                      className="patient-example-card"
-                      href={`/dashboard/pasien/pembayaran?contoh=${item.key}`}
-                      key={item.key}
-                    >
-                      <span className={`bill-status bill-status-${item.status}`}>{paymentStatuses[item.status]}</span>
-                      <strong>{item.title === "Belum dibayar" ? "Contoh belum lunas" : `Contoh ${item.title.toLowerCase()}`}</strong>
-                      <span>{item.id}</span>
-                      <span className="patient-example-link">Lihat contoh <span aria-hidden="true">→</span></span>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            </>
-          )}
         </section>
       </main>
     </div>

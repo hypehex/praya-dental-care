@@ -9,6 +9,7 @@ import type { UserSession } from "../_lib/auth";
 import { logoutAction } from "../_lib/auth-actions";
 import {
   confirmArrivalAction,
+  reviewBookingAction,
   reviewPatientRegistrationAction,
   savePortalFormAction,
   submitFeedbackAction,
@@ -70,18 +71,22 @@ function PortalPageContent({
   recordId,
 }: PortalPageContentProps) {
   const parentHref = portalHref(role.slug, screen.parent);
-  const reviewScreen = role.screens.find(
-    (candidate) =>
-      candidate.kind === "review" &&
-      candidate.parent === screen.parent &&
-      candidate.section.startsWith(`${screen.section}/`),
-  );
+  const bookingSchedules = formOptions["Jadwal Praktik"] ?? [];
+  const presetSchedule = bookingSchedules.find((option) => option.value === recordId);
+  const presetDoctorId = presetSchedule?.doctorId ??
+    (formOptions.Dokter?.some((option) => option.value === recordId) ? recordId : undefined);
+  const presetServiceId = formOptions["Jenis Layanan"]?.some((option) => option.value === recordId)
+    ? recordId
+    : undefined;
   const formScreen = role.screens.find(
     (candidate) =>
       candidate.kind === "form" &&
       candidate.parent === screen.parent &&
       candidate.section.startsWith(`${screen.parent}/`),
   );
+  const inlineEditScreen = role.slug === "manajer-klinik" && screen.kind === "list"
+    ? role.screens.find((candidate) => candidate.section === `${screen.parent}/edit`)
+    : undefined;
   const formAction =
     role.slug === "manajer-klinik" && /^(informasi-klinik|data-pelayanan)\/(tambah|edit)$/.test(screen.section)
       ? saveCatalogAction.bind(null, screen.section)
@@ -89,6 +94,8 @@ function PortalPageContent({
         ? updateClinicalAction.bind(null, screen.section)
         : role.slug === "pasien" && screen.section === "pembayaran/transfer"
           ? submitPaymentAction
+          : role.slug === "pasien" && screen.section === "profil/edit"
+            ? savePortalFormAction.bind(null, role.slug, screen.section)
           :
     screen.section === "booking-kunjungan/tambah"
       ? bookVisitAction
@@ -109,8 +116,8 @@ function PortalPageContent({
               ].includes(screen.section)
             ? savePortalFormAction.bind(null, role.slug, screen.section)
             : role.slug === "dokter" &&
-                ["rekam-medis/tambah", "resep/tambah"].includes(screen.section)
-              ? savePortalFormAction.bind(null, role.slug, screen.section)
+                ["rekam-medis/tambah", "resep/tambah", "rekam-medis/tambah/resep"].includes(screen.section)
+              ? savePortalFormAction.bind(null, role.slug, screen.section === "rekam-medis/tambah/resep" ? "resep/tambah" : screen.section)
               : role.slug === "perawat" &&
                   ["status-kunjungan/tambah", "status-kunjungan/ubah"].includes(screen.section)
                 ? savePortalFormAction.bind(null, role.slug, screen.section)
@@ -118,6 +125,7 @@ function PortalPageContent({
   const errorMessage =
     error === "in-use" ? "Data masih digunakan atau statusnya tidak mengizinkan penghapusan."
       : error === "file" ? "Pilih bukti PNG, JPG, atau PDF yang valid, maksimum 3 MB."
+      : error === "slot-unavailable" ? "Waktu kunjungan tersebut sudah digunakan. Pilih waktu lain yang masih tersedia."
       : error === "database"
       ? "Database tidak tersedia. Perubahan belum disimpan."
       : error === "duplicate"
@@ -171,7 +179,7 @@ function PortalPageContent({
         ["booking-kunjungan/ubah", "booking-kunjungan/dibatalkan"].includes(section)) ||
       (role.slug === "pasien" &&
         section === "booking-kunjungan/tambah" &&
-        screen.section === "data-dokter/detail") ||
+        ["data-dokter/detail", "jadwal-dokter/detail", "layanan/detail"].includes(screen.section)) ||
       (role.slug === "pasien" &&
         section === "jadwal-dokter" &&
         screen.section === "data-dokter/detail") ||
@@ -182,7 +190,7 @@ function PortalPageContent({
       ? `${href}?id=${encodeURIComponent(recordId)}`
       : href;
   };
-  const formNeedsRecordId = /\/(edit|transfer)$/.test(screen.section) ||
+  const formNeedsRecordId = (screen.section !== "profil/edit" && /\/(edit|transfer)$/.test(screen.section)) ||
     (role.slug === "manajer-klinik" &&
       ["data-pasien/edit", "data-dokter/edit", "jadwal-dokter/edit"].includes(screen.section)) ||
     (role.slug === "pasien" && screen.section === "booking-kunjungan/ubah") ||
@@ -191,16 +199,22 @@ function PortalPageContent({
       ["status-kunjungan/tambah", "status-kunjungan/ubah"].includes(screen.section)) ||
     (role.slug === "owner" &&
       screen.section === "informasi-operasional/kritik-pasien/detail");
-  const visibleActions = screen.actions?.filter(() => {
+  const visibleActions = screen.actions?.filter((item) => {
+    if (role.slug === "dokter" && screen.section === "kunjungan-pasien/detail") {
+      return rows[0]?.values?.["Status Saat Ini"] === "Pemeriksaan" &&
+        rows[0]?.values?.["Rekam Medis"] === "-";
+    }
     if (role.slug !== "pasien" || screen.section !== "booking-kunjungan/detail") {
       if (role.slug !== "pasien" || screen.section !== "pembayaran/detail") {
         return true;
       }
       return ["0", "3"].includes(rows[0]?.values?.status ?? "");
     }
-    return ["Menunggu", "Dikonfirmasi"].includes(
-      rows[0]?.values?.["Status Saat Ini"] ?? "",
-    );
+    const status = rows[0]?.values?.["Status Saat Ini"] ?? "";
+    if (item.section === "booking-kunjungan/hapus") {
+      return ["Menunggu", "Dibatalkan"].includes(status);
+    }
+    return ["Menunggu", "Dikonfirmasi"].includes(status);
   });
 
   if (screen.kind === "dashboard") {
@@ -329,10 +343,91 @@ function PortalPageContent({
         </section>
       );
     }
+    if (role.slug === "manajer-klinik") {
+      return (
+        <section className="manager-dashboard" aria-label="Ringkasan Manajer Klinik">
+          {errorMessage || dataError ? <p className="portal-notice" role="alert">{errorMessage ?? dataError}</p> : null}
+          <div className="manager-dashboard-metrics">
+            {rows[0]?.summaryDashboard?.map((metric) => (
+              <Link className="manager-dashboard-metric" href={portalHref(role.slug, metric.section)} key={metric.label}>
+                <span>{metric.label}</span>
+                <strong>{metric.count}</strong>
+                <small>Lihat data</small>
+              </Link>
+            ))}
+          </div>
+          <section className="manager-dashboard-panel">
+            <div>
+              <p className="manager-detail-eyebrow">Akses cepat</p>
+              <h2>Kelola operasional klinik</h2>
+              <p>Pilih data yang akan dikelola. Setiap perubahan tersimpan dan langsung tersedia untuk role terkait.</p>
+            </div>
+            <div className="manager-dashboard-shortcuts">
+              {role.menu.filter((item) => item.section).map((item) => (
+                <Link href={portalHref(role.slug, item.section)} key={item.section}>{item.label}<span aria-hidden="true">→</span></Link>
+              ))}
+            </div>
+          </section>
+        </section>
+      );
+    }
+    if (role.slug === "dokter") {
+      const dashboard = rows[0]?.doctorDashboard;
+      return (
+        <section className="doctor-dashboard" aria-label="Ringkasan Dokter">
+          {errorMessage || dataError ? <p className="portal-notice" role="alert">{errorMessage ?? dataError}</p> : null}
+          <div className="doctor-dashboard-banner">Pelayanan Klinis Lebih Terarah</div>
+          <div className="doctor-dashboard-metrics">
+            {[
+              ["Kunjungan Hari Ini", dashboard?.todayVisitCount ?? 0, "kunjungan-pasien"],
+              ["Menunggu Pemeriksaan", dashboard?.waitingExaminationCount ?? 0, "kunjungan-pasien"],
+              ["Draft Rekam Medis", dashboard?.draftRecordCount ?? 0, "rekam-medis"],
+              ["Resep Tercatat", dashboard?.prescriptionCount ?? 0, "resep"],
+            ].map(([label, count, section]) => (
+              <Link className="doctor-dashboard-metric" href={portalHref(role.slug, String(section))} key={String(label)}>
+                <span>{label}</span>
+                <strong>{count}</strong>
+              </Link>
+            ))}
+          </div>
+          <div className="doctor-dashboard-tables">
+            <section className="doctor-dashboard-list">
+              <div className="doctor-dashboard-list-heading"><h2>Kunjungan Hari Ini</h2><Link href={portalHref(role.slug, "kunjungan-pasien")}>Lihat Semua</Link></div>
+              <div className="doctor-mini-row doctor-mini-header"><span>Pasien</span><span>Waktu</span><span>Status</span><span>Aksi</span></div>
+              {dashboard?.visits.length ? dashboard.visits.map((visit) => (
+                <div className="doctor-mini-row" key={visit.id}>
+                  <strong>{visit.patient}</strong><span>{visit.time}</span><span className="doctor-status-pill">{visit.status}</span>
+                  <Link href={`${portalHref(role.slug, "kunjungan-pasien/detail")}?id=${encodeURIComponent(visit.id)}`}>Detail</Link>
+                </div>
+              )) : <p className="doctor-dashboard-empty">Belum ada kunjungan hari ini.</p>}
+            </section>
+            <section className="doctor-dashboard-list">
+              <div className="doctor-dashboard-list-heading"><h2>Jadwal Praktik Saya</h2><Link href={portalHref(role.slug, "jadwal-saya")}>Lihat Semua</Link></div>
+              <div className="doctor-mini-row doctor-schedule-row doctor-mini-header"><span>Hari</span><span>Waktu</span><span>Status</span></div>
+              {dashboard?.schedules.length ? dashboard.schedules.map((schedule) => (
+                <Link className="doctor-mini-row doctor-schedule-row" href={`${portalHref(role.slug, "jadwal-saya/detail")}?id=${encodeURIComponent(schedule.id)}`} key={schedule.id}>
+                  <strong>{schedule.day}</strong><span>{schedule.time}</span><span className="doctor-status-pill">{schedule.status}</span>
+                </Link>
+              )) : <p className="doctor-dashboard-empty">Belum ada jadwal praktik.</p>}
+            </section>
+          </div>
+        </section>
+      );
+    }
     return (
       <section className="portal-overview" aria-label="Navigasi fitur">
         {errorMessage ? <p className="portal-notice" role="alert">{errorMessage}</p> : null}
         <p className="portal-notice">Selamat datang di Praya Dental Care, {role.label}.</p>
+        {rows[0]?.summaryDashboard?.length ? (
+          <div className="patient-metric-grid">
+            {rows[0].summaryDashboard.map((metric) => (
+              <Link className="patient-metric-card" href={portalHref(role.slug, metric.section)} key={metric.label}>
+                <strong>{metric.count}</strong>
+                <span>{metric.label}</span>
+              </Link>
+            ))}
+          </div>
+        ) : null}
         {visibleActions?.length ? (
           <div className="portal-action-row">
             {visibleActions.map((item) => (
@@ -370,7 +465,8 @@ function PortalPageContent({
         <p className="portal-notice" role="alert">{errorMessage ?? dataError}</p>
       ) : null}
       {role.slug === "pasien" && screen.kind === "detail" ||
-      role.slug === "manajer-klinik" && screen.kind === "detail" ? null : <div className="portal-action-row">
+      role.slug === "manajer-klinik" && screen.kind === "detail" ||
+      role.slug === "dokter" && screen.kind === "detail" ? null : <div className="portal-action-row">
         {visibleActions?.map((item) => (
           <Link
             className={`portal-button portal-button-${item.variant ?? "secondary"}`}
@@ -390,7 +486,7 @@ function PortalPageContent({
         ) : null}
       </div>}
 
-      {screen.kind === "list" ? <form method="get" className="portal-form">
+      {screen.kind === "list" && role.slug !== "dokter" ? <form method="get" className="portal-form">
         {role.slug === "owner" && /^(rekap-pelayanan|laporan-klinik)/.test(screen.section) ? <>
           <label className="portal-field">Tanggal Awal<input name="from" type="date" required /></label>
           <label className="portal-field">Tanggal Akhir<input name="to" type="date" required /></label>
@@ -404,7 +500,12 @@ function PortalPageContent({
       {screen.kind === "list" ? (
         <>
         <div className="portal-table-wrap">
-          <table className={`portal-table${role.slug === "pasien" ? " patient-portal-table" : ""}${role.slug === "manajer-klinik" ? " manager-portal-table" : ""}${role.slug === "manajer-klinik" && screen.parent === "data-pelayanan" ? " manager-service-table" : ""}`}>
+          {role.slug === "dokter" ? (
+            <h2 className="doctor-table-title">
+              {screen.parent === "kunjungan-pasien" ? "Kunjungan Yang Ditugaskan" : screen.parent === "jadwal-saya" ? "Jadwal Praktik Saya" : screen.parent === "rekam-medis" ? "Rekam Medis Pasien" : screen.parent === "resep" ? "Daftar Resep" : screen.title}
+            </h2>
+          ) : null}
+          <table className={`portal-table${role.slug === "pasien" ? " patient-portal-table" : ""}${role.slug === "manajer-klinik" ? " manager-portal-table" : ""}${role.slug === "dokter" ? " doctor-portal-table" : ""}${role.slug === "manajer-klinik" && screen.parent === "data-pelayanan" ? " manager-service-table" : ""}`}>
             <thead>
               <tr>
                 {(screen.columns ?? []).map((column) => (
@@ -444,12 +545,12 @@ function PortalPageContent({
                               </button>
                             </form>
                           ) : item.detailHref ? (
-                            <Link
-                              className="portal-button portal-button-secondary"
-                              href={item.detailHref}
-                            >
-                              Detail
-                            </Link>
+                            <div className="manager-table-actions">
+                              <Link className="portal-button portal-button-secondary" href={item.detailHref}>Detail</Link>
+                              {inlineEditScreen ? (
+                                <Link className="portal-button portal-button-secondary" href={`${portalHref(role.slug, inlineEditScreen.section)}?id=${encodeURIComponent(item.id)}`}>Edit</Link>
+                              ) : null}
+                            </div>
                           ) : "-" }
                         </td>
                       ) : null}
@@ -472,12 +573,15 @@ function PortalPageContent({
       {screen.kind === "form" ? (
         <ReviewForm
           action={formAction}
-          className={`portal-form${screen.section === "booking-kunjungan/tambah" || screen.section === "booking-kunjungan/ubah" ? " booking-form" : ""}${role.slug === "manajer-klinik" ? " manager-portal-form" : ""}`}
-          saveLabel={screen.section === "booking-kunjungan/tambah" ? "Simpan Booking" : "Simpan"}
+          className={`portal-form${screen.section === "booking-kunjungan/tambah" || screen.section === "booking-kunjungan/ubah" ? " booking-form" : ""}${role.slug === "manajer-klinik" ? " manager-portal-form" : ""}${role.slug === "dokter" ? " doctor-portal-form" : ""}`}
+          saveLabel={screen.section === "booking-kunjungan/tambah" ? "Simpan Booking" : formSubmitLabel}
         >
           <input name="recordId" type="hidden" value={recordId ?? ""} />
           {screen.section === "rekam-medis/tambah" ? (
             <input name="visitId" type="hidden" value={recordId ?? ""} />
+          ) : null}
+          {screen.section === "rekam-medis/tambah/resep" ? (
+            <input name="Rekam Medis" type="hidden" value={recordId ?? ""} />
           ) : null}
           {screen.section === "informasi-operasional/kritik-pasien/detail" ? (
             <input name="feedbackId" type="hidden" value={recordId ?? rows[0]?.id ?? ""} />
@@ -515,11 +619,11 @@ function PortalPageContent({
                 <BookingScheduleFields
                   doctors={field === "Dokter" ? formOptions.Dokter ?? [] : undefined}
                   initialDate={rows[0]?.values?.["Tanggal Kunjungan"]}
-                  initialDoctorId={field === "Dokter" ? recordId : undefined}
+                  initialDoctorId={field === "Dokter" ? presetDoctorId : undefined}
                   initialScheduleId={
                     screen.section === "booking-kunjungan/ubah"
                       ? rows[0]?.values?.["Jadwal Baru"]
-                      : undefined
+                      : presetSchedule?.value
                   }
                   initialTime={rows[0]?.values?.["Waktu Kunjungan"]}
                   key={field}
@@ -573,7 +677,7 @@ function PortalPageContent({
               ["booking-kunjungan/tambah", "booking-kunjungan/ubah"].includes(screen.section) &&
               field === "Jenis Layanan"
             ) {
-              const selectedService = rows[0]?.values?.[field] ?? "";
+              const selectedService = rows[0]?.values?.[field] ?? presetServiceId ?? "";
               const hasOtherService = options.some((option) => option.value === "__other__");
               return (
                 <fieldset className="portal-service-options" key={field}>
@@ -681,11 +785,6 @@ function PortalPageContent({
               </label>
             );
           })}
-          {!formAction && !reviewScreen ? (
-            <p className="portal-notice">
-              Tindakan ini belum terhubung ke struktur data yang tersedia.
-            </p>
-          ) : null}
           <div className="portal-form-actions">
             <Link className="portal-button portal-button-secondary" href={parentHref}>Batal</Link>
           {formAction ? (
@@ -696,31 +795,20 @@ function PortalPageContent({
             >
               {formSubmitLabel}
             </button>
-          ) : reviewScreen ? (
-            <button className="portal-button portal-button-disabled" disabled type="button">
-              Periksa Kembali
-            </button>
-          ) : (
-            <button className="portal-button portal-button-disabled" disabled type="button">
-              Simpan
-            </button>
-          )}
+          ) : null}
           </div>
         </ReviewForm>
       ) : null}
 
       {screen.kind === "review" ? (
-        <div className="portal-state-card">
-          <p>Data dari formulir sebelumnya tidak tersimpan pada halaman ini.</p>
+        <div className={`portal-state-card${role.slug === "dokter" ? " doctor-state-card" : ""}`}>
+          <p>Pemeriksaan data dilakukan pada dialog konfirmasi di formulir sebelumnya.</p>
           <Link
             className="portal-button portal-button-secondary"
             href={parentHref}
           >
             Kembali
           </Link>
-          <button className="portal-button portal-button-disabled" disabled type="button">
-            Simpan
-          </button>
         </div>
       ) : null}
 
@@ -847,6 +935,16 @@ function PortalPageContent({
                       Tolak Registrasi
                     </button>
                   </form>
+                ) : screen.section === "kunjungan-pasien/detail" && rows[0].values?.["Status Saat Ini"] === "Menunggu" ? (
+                  <form action={reviewBookingAction} className="manager-detail-action-list">
+                    <input name="visitId" type="hidden" value={rows[0].id} />
+                    <button className="portal-button portal-button-primary" name="decision" type="submit" value="approve">
+                      Konfirmasi Booking
+                    </button>
+                    <button className="portal-button portal-button-danger" name="decision" type="submit" value="reject">
+                      Tolak Booking
+                    </button>
+                  </form>
                 ) : (
                   visibleActions?.map((item) => (
                     <Link
@@ -870,6 +968,41 @@ function PortalPageContent({
                 Kembali ke Daftar
               </Link>
             </div>
+          )
+        ) : role.slug === "dokter" && screen.kind === "detail" ? (
+          rows[0] ? (
+            <div className={`doctor-detail-layout doctor-detail-${screen.parent}`}>
+              <article className="doctor-detail-card">
+                <h2>{screen.parent === "kunjungan-pasien" ? "Ringkasan Pasien" : screen.parent === "resep" ? "Informasi Resep" : screen.parent === "rekam-medis" ? "Catatan Rekam Medis" : screen.title}</h2>
+                <dl className="doctor-detail-list">
+                  {(screen.columns ?? []).map((label, index) => (
+                    <div key={label}>
+                      <dt>{label}</dt>
+                      <dd>{rows[0].cells[index] || "-"}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </article>
+              <aside className="doctor-detail-side">
+                {screen.parent === "rekam-medis" ? (
+                  <section className="doctor-detail-info">
+                    <h2>Informasi Rekam Medis</h2>
+                    <p>Catatan ini memuat hasil pemeriksaan dan tindakan. Resep disimpan terhubung dengan rekam medis.</p>
+                  </section>
+                ) : null}
+                <div className="doctor-detail-actions">
+                  {screen.parent === "kunjungan-pasien" ? (
+                    <Link className="portal-button portal-button-secondary" href={`${portalHref(role.slug, "riwayat-pasien")}?q=${encodeURIComponent(rows[0].values?.["Nama Pasien"] ?? "")}`}>Lihat Riwayat</Link>
+                  ) : null}
+                  {visibleActions?.map((item) => (
+                    <Link className={`portal-button portal-button-${item.variant ?? "secondary"}`} href={actionHref(item.section)} key={`${item.section}-${item.label}`}>{item.label}</Link>
+                  ))}
+                  <Link className="portal-button portal-button-secondary" href={parentHref}>Kembali ke Daftar</Link>
+                </div>
+              </aside>
+            </div>
+          ) : (
+            <div className="doctor-empty-detail"><p>Data tidak ditemukan atau sudah tidak tersedia.</p><Link className="portal-button portal-button-secondary" href={parentHref}>Kembali ke Daftar</Link></div>
           )
         ) : role.slug === "pasien" && screen.kind === "detail" && rows[0] ? (
           screen.section === "pembayaran/detail" ? (
@@ -1054,10 +1187,6 @@ function PortalPageContent({
                     Konfirmasi Pembatalan
                   </button>
                 </form>
-              ) : screen.kind === "confirmation" ? (
-                <button className="portal-button portal-button-disabled" disabled type="button">
-                  Konfirmasi
-                </button>
               ) : null}
         </div>
         )

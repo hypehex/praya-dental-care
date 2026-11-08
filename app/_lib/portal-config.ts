@@ -65,16 +65,17 @@ export const portalRoles: PortalRole[] = [
     menu: [
       { label: "Dashboard", section: "" },
       { label: "Data Pasien", section: "data-pasien" },
+      { label: "Data Pelayanan", section: "data-pelayanan" },
       { label: "Data Dokter", section: "data-dokter" },
       { label: "Jadwal Dokter", section: "jadwal-dokter" },
+      { label: "Kunjungan Pasien", section: "kunjungan-pasien" },
       { label: "Pembayaran", section: "pembayaran" },
       { label: "Informasi Klinik", section: "informasi-klinik" },
-      { label: "Data Pelayanan", section: "data-pelayanan" },
     ],
     screens: [
       screen("", "", "Dashboard Manajer Klinik", "dashboard", "Ringkasan pengelolaan klinik."),
-      screen("data-pasien", "data-pasien", "Daftar Pasien", "list", "Kelola data dan pengajuan registrasi pasien.", {
-        columns: ["ID Pasien", "Nama Pasien", "Tanggal Lahir", "No. HP", "Aksi"],
+      screen("data-pasien", "data-pasien", "Data Pasien", "list", "Kelola data dan pengajuan registrasi pasien.", {
+        columns: ["Nama Pasien", "ID Pasien", "Kontak", "Status", "Aksi"],
         actions: [
           action("Tambah Data Pasien", "data-pasien/tambah", "primary"),
           action("Pengajuan Registrasi", "pengajuan-registrasi"),
@@ -148,6 +149,12 @@ export const portalRoles: PortalRole[] = [
       }),
       screen("jadwal-dokter/hapus", "jadwal-dokter", "Konfirmasi Hapus Jadwal", "confirmation", "Konfirmasi penghapusan jadwal dokter."),
       screen("jadwal-dokter/hapus/tidak-dapat", "jadwal-dokter", "Jadwal Tidak Dapat Dihapus", "status", "Jadwal yang memiliki booking tidak dapat dihapus."),
+      screen("kunjungan-pasien", "kunjungan-pasien", "Daftar Kunjungan Pasien", "list", "Tinjau dan konfirmasi booking pasien.", {
+        columns: ["Dokter", "Tanggal", "Waktu", "Keluhan", "Status", "Aksi"],
+      }),
+      screen("kunjungan-pasien/detail", "kunjungan-pasien", "Detail Kunjungan Pasien", "detail", "Periksa data booking sebelum memberikan keputusan.", {
+        columns: ["Dokter", "Tanggal", "Waktu", "Layanan", "Keluhan", "Status"],
+      }),
       screen("pembayaran", "pembayaran", "Daftar Pembayaran", "list", "Tinjau pembayaran pasien.", {
         columns: ["ID Pembayaran", "Pasien", "Jumlah", "Tanggal", "Status", "Metode", "Aksi"],
       }),
@@ -184,6 +191,9 @@ export const portalRoles: PortalRole[] = [
     initials: "PS",
     menu: [
       { label: "Dashboard", section: "" },
+      { label: "Profil Saya", section: "profil" },
+      { label: "Informasi Klinik", section: "informasi-klinik" },
+      { label: "Layanan", section: "layanan" },
       { label: "Booking & Kunjungan", section: "booking-kunjungan" },
       { label: "Data Dokter", section: "data-dokter" },
       { label: "Konfirmasi Kedatangan", section: "konfirmasi-kedatangan" },
@@ -193,6 +203,26 @@ export const portalRoles: PortalRole[] = [
     ],
     screens: [
       screen("", "", "Dashboard Pasien", "dashboard", "Ringkasan kunjungan dan layanan pasien."),
+      screen("profil", "profil", "Profil Saya", "detail", "Data pribadi yang terhubung dengan akun pasien.", {
+        columns: ["ID Pasien", "Nama Pasien", "Tanggal Lahir", "No. HP", "Alamat Jalan", "Kode Pos", "Username"],
+        actions: [action("Edit Profil", "profil/edit", "primary")],
+      }),
+      screen("profil/edit", "profil", "Edit Profil", "form", "Perbarui data pribadi pasien.", {
+        fields: ["Nama Pasien", "Tanggal Lahir", "Alamat Jalan", "No. HP", "Kode Pos"],
+      }),
+      screen("informasi-klinik", "informasi-klinik", "Informasi Klinik", "list", "Informasi operasional terbaru dari klinik.", {
+        columns: ["Judul", "Tanggal Publikasi", "Aksi"],
+      }),
+      screen("informasi-klinik/detail", "informasi-klinik", "Detail Informasi Klinik", "detail", "Informasi operasional klinik.", {
+        columns: ["Judul", "Tanggal Publikasi", "Isi Informasi"],
+      }),
+      screen("layanan", "layanan", "Layanan Klinik", "list", "Lihat jenis pelayanan dan biaya yang tersedia.", {
+        columns: ["Nama Layanan", "Deskripsi", "Biaya", "Aksi"],
+      }),
+      screen("layanan/detail", "layanan", "Detail Layanan", "detail", "Informasi jenis pelayanan klinik.", {
+        columns: ["Nama Layanan", "Deskripsi", "Biaya"],
+        actions: [action("Booking Layanan", "booking-kunjungan/tambah", "primary")],
+      }),
       screen("booking-kunjungan", "booking-kunjungan", "Booking dan Kunjungan", "list", "Kelola booking dan riwayat kunjungan.", {
         columns: ["Dokter", "Tanggal", "Waktu", "Keluhan", "Status", "Aksi"],
         actions: [action("Booking Kunjungan", "booking-kunjungan/tambah", "primary"), action("Riwayat Booking", "booking-kunjungan/riwayat")],
@@ -215,7 +245,7 @@ export const portalRoles: PortalRole[] = [
       }),
       screen("booking-kunjungan/ubah/periksa", "booking-kunjungan", "Perubahan Booking Belum Valid", "review", "Periksa kembali perubahan booking."),
       screen("booking-kunjungan/riwayat", "booking-kunjungan", "Riwayat Booking", "list", "Riwayat booking kunjungan.", {
-        columns: ["Tanggal", "Dokter", "Keluhan", "Status"],
+        columns: ["Tanggal", "Dokter", "Keluhan", "Status", "Aksi"],
       }),
       screen("booking-kunjungan/hapus", "booking-kunjungan", "Konfirmasi Hapus Booking", "confirmation", "Konfirmasi penghapusan booking."),
       screen("booking-kunjungan/hapus/tidak-dapat", "booking-kunjungan", "Booking Tidak Dapat Dihapus", "status", "Status booking."),
@@ -238,10 +268,11 @@ export const portalRoles: PortalRole[] = [
       screen("konfirmasi-kedatangan/selesai", "konfirmasi-kedatangan", "Kedatangan Terkonfirmasi", "status", "Status konfirmasi kedatangan."),
       screen("konfirmasi-kedatangan/tidak-berlaku", "konfirmasi-kedatangan", "Konfirmasi Kedatangan Tidak Berlaku", "status", "Status konfirmasi kedatangan."),
       screen("jadwal-dokter", "jadwal-dokter", "Jadwal Dokter", "list", "Lihat jadwal praktik dokter.", {
-        columns: ["Dokter", "Spesialisasi", "Hari", "Jam Praktik", "Status"],
+        columns: ["Dokter", "Spesialisasi", "Hari", "Jam Praktik", "Status", "Aksi"],
       }),
       screen("jadwal-dokter/detail", "jadwal-dokter", "Detail Dokter dan Jadwal", "detail", "Informasi dokter dan jadwal praktik.", {
         columns: ["Dokter", "Hari Praktik", "Jam Mulai", "Jam Selesai", "Jumlah Kunjungan", "Status Jadwal"],
+        actions: [action("Booking Jadwal Ini", "booking-kunjungan/tambah", "primary")],
       }),
       screen("pembayaran/detail", "pembayaran", "Detail Pembayaran", "detail", "Informasi tagihan dan status pembayaran.", { columns: ["ID Pembayaran", "Pasien", "Jumlah", "Tanggal", "Status", "Metode"], actions: [action("Pilih Pembayaran", "pembayaran/transfer", "primary")] }),
       screen("pembayaran/transfer", "pembayaran", "Pembayaran melalui Transfer Bank", "form", "Lengkapi informasi pembayaran.", {
@@ -267,14 +298,15 @@ export const portalRoles: PortalRole[] = [
       { label: "Kunjungan Pasien", section: "kunjungan-pasien" },
       { label: "Rekam Medis", section: "rekam-medis" },
       { label: "Resep", section: "resep" },
-      { label: "Riwayat Pasien", section: "riwayat-pasien" },
     ],
     screens: [
       screen("", "", "Dashboard Dokter", "dashboard", "Ringkasan jadwal dan kunjungan pasien."),
       screen("jadwal-saya", "jadwal-saya", "Jadwal Praktik Saya", "list", "Lihat jadwal praktik dokter.", {
-        columns: ["Dokter", "Hari / Tanggal", "Jam Praktik", "Booking", "Status", "Aksi"],
+        columns: ["Hari / Tanggal", "Jam Praktik", "Jenis Pelayanan", "Kunjungan", "Status", "Aksi"],
       }),
-      screen("jadwal-saya/detail", "jadwal-saya", "Detail Jadwal", "detail", "Informasi jadwal praktik."),
+      screen("jadwal-saya/detail", "jadwal-saya", "Detail Jadwal", "detail", "Informasi jadwal praktik.", {
+        columns: ["Dokter", "Hari", "Jam Mulai", "Jam Selesai", "Jumlah Booking", "Status"],
+      }),
       screen("kunjungan-pasien", "kunjungan-pasien", "Daftar Kunjungan Pasien", "list", "Tinjau kunjungan pasien.", {
         columns: ["Pasien", "Nomor RM", "Layanan / Keluhan", "Waktu", "Status", "Aksi"],
       }),
@@ -286,13 +318,16 @@ export const portalRoles: PortalRole[] = [
         columns: ["Pasien", "Nomor RM", "Tanggal", "Diagnosis / Tindakan", "Status Catatan", "Aksi"],
       }),
       screen("rekam-medis/detail", "rekam-medis", "Detail Rekam Medis", "detail", "Informasi rekam medis pasien.", {
+        columns: ["Pasien", "Nomor RM", "Tanggal", "Dokter", "Perawat", "Keluhan", "Hasil Pemeriksaan", "Diagnosis", "Tindakan", "Catatan", "Status Catatan"],
         actions: [action("Tambah Resep", "resep/tambah", "primary"), action("Ubah Catatan", "rekam-medis/edit"), action("Hapus Catatan", "rekam-medis/hapus", "danger")],
       }),
       screen("rekam-medis/tambah", "rekam-medis", "Form Rekam Medis", "form", "Lengkapi hasil pemeriksaan pasien.", {
         fields: ["Perawat", "Keluhan", "Hasil Pemeriksaan", "Catatan Pemeriksaan", "Diagnosis", "Tindakan", "Catatan"],
       }),
       screen("rekam-medis/edit", "rekam-medis", "Ubah Catatan Rekam Medis", "form", "Perbarui catatan pasien.", { fields: ["Diagnosis", "Catatan"] }),
-      screen("rekam-medis/hapus", "rekam-medis", "Hapus Rekam Medis", "confirmation", "Catatan tervalidasi atau yang memiliki resep tidak dapat dihapus."),
+      screen("rekam-medis/hapus", "rekam-medis", "Hapus Rekam Medis", "confirmation", "Catatan tervalidasi atau yang memiliki resep tidak dapat dihapus.", {
+        columns: ["Pasien", "Nomor RM", "Tanggal", "Diagnosis / Tindakan", "Status Catatan"],
+      }),
       screen("rekam-medis/tambah/resep", "rekam-medis", "Informasi Resep", "form", "Lengkapi informasi resep jika diperlukan.", {
         fields: ["Nomor Resep", "Tanggal Resep", "Isi Resep"],
       }),
@@ -301,19 +336,23 @@ export const portalRoles: PortalRole[] = [
       screen("resep", "resep", "Daftar Resep", "list", "Lihat resep yang tersimpan.", {
         columns: ["Nomor Resep", "Tanggal", "Isi Resep", "Aksi"],
       }),
-      screen("resep/detail", "resep", "Informasi Resep", "detail", "Informasi resep pasien.", { columns: ["Nomor Resep", "Tanggal", "Isi Resep"], actions: [action("Ubah Resep", "resep/edit"), action("Hapus Resep", "resep/hapus", "danger")] }),
+      screen("resep/detail", "resep", "Detail Resep Pasien", "detail", "Informasi resep pasien.", { columns: ["Nama Pasien", "Nomor Rekam Medis", "Nomor Resep", "Tanggal Resep", "Isi Resep"], actions: [action("Ubah Resep", "resep/edit"), action("Hapus Resep", "resep/hapus", "danger")] }),
       screen("resep/edit", "resep", "Ubah Resep", "form", "Perbarui resep pasien.", { fields: ["Nomor Resep", "Tanggal Resep", "Isi Resep"] }),
       screen("resep/tambah", "resep", "Tambah Resep", "form", "Lengkapi informasi resep.", {
         fields: ["Rekam Medis", "Nomor Resep", "Tanggal Resep", "Isi Resep"],
       }),
       screen("resep/tambah/tersimpan", "resep", "Resep Disimpan", "status", "Status resep."),
       screen("resep/tambah/tidak-valid", "resep", "Resep Tidak Valid", "status", "Status resep."),
-      screen("resep/hapus", "resep", "Hapus Resep", "confirmation", "Konfirmasi penghapusan resep."),
+      screen("resep/hapus", "resep", "Hapus Resep", "confirmation", "Konfirmasi penghapusan resep.", {
+        columns: ["Nomor Resep", "Tanggal", "Isi Resep"],
+      }),
       screen("resep/hapus/tidak-dapat", "resep", "Resep Tidak Dapat Dihapus", "status", "Status resep."),
       screen("riwayat-pasien", "riwayat-pasien", "Riwayat Pasien", "list", "Tinjau riwayat pasien yang ditangani.", {
         columns: ["Nama Pasien", "Nomor RM", "Tanggal", "Diagnosis / Tindakan", "Aksi"],
       }),
-      screen("riwayat-pasien/detail", "riwayat-pasien", "Detail Riwayat Pasien", "detail", "Informasi riwayat perawatan pasien."),
+      screen("riwayat-pasien/detail", "riwayat-pasien", "Detail Riwayat Pasien", "detail", "Informasi riwayat perawatan pasien.", {
+        columns: ["Pasien", "Nomor RM", "Tanggal", "Dokter", "Perawat", "Keluhan", "Hasil Pemeriksaan", "Diagnosis", "Tindakan", "Catatan", "Status Catatan"],
+      }),
     ],
   },
   {
