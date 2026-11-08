@@ -1,69 +1,104 @@
+import { connection } from "next/server";
+import { prisma } from "./_lib/prisma";
+import { clinicToday } from "./_lib/workflow";
+export const instant = false;
+import Link from "next/link";
 import Image from "next/image";
+import { PublicHeader } from "./_components/public-header";
 
-export default function Home() {
+export default async function Home() {
+  await connection();
+  const announcements = await prisma.informasi_klinik.findMany({ where: { tanggal_publikasi: { lte: new Date(clinicToday()) } }, orderBy: { tanggal_publikasi: "desc" } });
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main className="public-main home-page">
+      <PublicHeader activePath="/" />
+
+      <section aria-labelledby="home-title" className="home-hero">
+        <h1 id="home-title">
+          Senyum Sehat,
+          <br />
+          Hidup Lebih Bahagia
+        </h1>
+        <p>
+          Perawatan gigi yang nyaman, ramah, dan terpercaya untuk seluruh
+          keluarga.
+        </p>
+        <div className="home-actions">
+          <Link className="button-primary" href="/jadwal-dokter">
+            Lihat Jadwal Dokter
+          </Link>
+          <Link className="button-secondary" href="/masuk/pasien">
+            Booking Kunjungan
+          </Link>
+        </div>
+      </section>
+
+      <div className="home-information-grid">
+        <section aria-labelledby="visit-steps-title" className="visit-steps">
+          <h2 id="visit-steps-title">Langkah mudah untuk berkunjung</h2>
+          <p className="section-description">
+            Tiga langkah sederhana untuk memulai perawatan gigi.
           </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          <ol className="visit-step-list">
+            <li>
+              <span className="step-number">
+                <Image
+                  alt=""
+                  height={42}
+                  src="/figma/landing-step-circle.svg"
+                  width={42}
+                />
+                <span aria-hidden="true">01</span>
+              </span>
+              <span className="step-copy">
+                <strong>Isi data</strong>
+                <span>Isi data pendaftaran dengan informasi yang benar.</span>
+              </span>
+            </li>
+            <li>
+              <span className="step-number">
+                <Image
+                  alt=""
+                  height={42}
+                  src="/figma/landing-step-circle.svg"
+                  width={42}
+                />
+                <span aria-hidden="true">02</span>
+              </span>
+              <span className="step-copy">
+                <strong>Tentukan Waktu</strong>
+                <span>Pilih waktu kunjungan yang sesuai kebutuhan.</span>
+              </span>
+            </li>
+            <li>
+              <span className="step-number">
+                <Image
+                  alt=""
+                  height={42}
+                  src="/figma/landing-step-circle.svg"
+                  width={42}
+                />
+                <span aria-hidden="true">03</span>
+              </span>
+              <span className="step-copy">
+                <strong>Datang ke klinik</strong>
+                <span>Datang sesuai jadwal dan ikuti arahan petugas.</span>
+              </span>
+            </li>
+          </ol>
+        </section>
+
+        <aside aria-labelledby="latest-info-title" className="latest-info">
+          <p className="eyebrow">INFORMASI TERBARU</p>
+          <h2 id="latest-info-title">{announcements[0]?.judul ?? "Informasi Klinik"}</h2>
+          <p>
+            {announcements[0]?.isi_informasi ?? "Belum ada pengumuman terbaru dari klinik."}
+          </p>
+          <Link className="button-primary" href="/informasi-klinik">
+            Lihat Informasi Klinik
+          </Link>
+        </aside>
+      </div>
+    </main>
   );
 }

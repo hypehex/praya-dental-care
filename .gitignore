@@ -44,3 +44,5 @@ next-env.d.ts
 
 database_backup_20261108.sql
 database_lama.sql
+# Local analysis tools and test artifacts
+/tmp/
