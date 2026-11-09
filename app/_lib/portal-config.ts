@@ -73,7 +73,7 @@ export const portalRoles: PortalRole[] = [
       { label: "Informasi Klinik", section: "informasi-klinik" },
     ],
     screens: [
-      screen("", "", "Dashboard Manajer Klinik", "dashboard", "Ringkasan pengelolaan klinik."),
+      screen("", "", "Dashboard", "dashboard", ""),
       screen("data-pasien", "data-pasien", "Data Pasien", "list", "Kelola data dan pengajuan registrasi pasien.", {
         columns: ["Nama Pasien", "ID Pasien", "Kontak", "Status", "Aksi"],
         actions: [
@@ -298,6 +298,7 @@ export const portalRoles: PortalRole[] = [
       { label: "Kunjungan Pasien", section: "kunjungan-pasien" },
       { label: "Rekam Medis", section: "rekam-medis" },
       { label: "Resep", section: "resep" },
+      { label: "Riwayat Pasien", section: "riwayat-pasien" },
     ],
     screens: [
       screen("", "", "Dashboard Dokter", "dashboard", "Ringkasan jadwal dan kunjungan pasien."),
@@ -329,7 +330,7 @@ export const portalRoles: PortalRole[] = [
         columns: ["Pasien", "Nomor RM", "Tanggal", "Diagnosis / Tindakan", "Status Catatan"],
       }),
       screen("rekam-medis/tambah/resep", "rekam-medis", "Informasi Resep", "form", "Lengkapi informasi resep jika diperlukan.", {
-        fields: ["Nomor Resep", "Tanggal Resep", "Isi Resep"],
+        fields: ["Tanggal Resep", "Isi Resep"],
       }),
       screen("rekam-medis/tambah/tersimpan", "rekam-medis", "Rekam Medis Tersimpan", "status", "Status rekam medis."),
       screen("rekam-medis/tambah/tidak-valid", "rekam-medis", "Rekam Medis Tidak Valid", "status", "Status rekam medis."),
@@ -337,9 +338,9 @@ export const portalRoles: PortalRole[] = [
         columns: ["Nomor Resep", "Tanggal", "Isi Resep", "Aksi"],
       }),
       screen("resep/detail", "resep", "Detail Resep Pasien", "detail", "Informasi resep pasien.", { columns: ["Nama Pasien", "Nomor Rekam Medis", "Nomor Resep", "Tanggal Resep", "Isi Resep"], actions: [action("Ubah Resep", "resep/edit"), action("Hapus Resep", "resep/hapus", "danger")] }),
-      screen("resep/edit", "resep", "Ubah Resep", "form", "Perbarui resep pasien.", { fields: ["Nomor Resep", "Tanggal Resep", "Isi Resep"] }),
+      screen("resep/edit", "resep", "Ubah Resep", "form", "Perbarui resep pasien.", { fields: ["Tanggal Resep", "Isi Resep"] }),
       screen("resep/tambah", "resep", "Tambah Resep", "form", "Lengkapi informasi resep.", {
-        fields: ["Rekam Medis", "Nomor Resep", "Tanggal Resep", "Isi Resep"],
+        fields: ["Rekam Medis", "Tanggal Resep", "Isi Resep"],
       }),
       screen("resep/tambah/tersimpan", "resep", "Resep Disimpan", "status", "Status resep."),
       screen("resep/tambah/tidak-valid", "resep", "Resep Tidak Valid", "status", "Status resep."),
@@ -363,51 +364,51 @@ export const portalRoles: PortalRole[] = [
       { label: "Dashboard", section: "" },
       { label: "Rekap pelayanan", section: "rekap-pelayanan" },
       { label: "Informasi operasional", section: "informasi-operasional" },
-      { label: "Kritik & Saran", section: "informasi-operasional/kritik-pasien" },
       { label: "Laporan klinik", section: "laporan-klinik" },
     ],
     screens: [
-      screen("", "", "Dashboard Owner", "dashboard", "Selamat datang, owner Praya Dental Care.", {
+      screen("", "", "Dashboard Owner", "dashboard", "Selamat datang, owner praya dental care.", {
         actions: [
           action("Lihat Rekap Pelayanan", "rekap-pelayanan", "primary"),
           action("Informasi Operasional", "informasi-operasional"),
           action("Laporan Klinik", "laporan-klinik"),
         ],
       }),
-      screen("rekap-pelayanan", "", "Rekap Pelayanan", "list", "Pilih periode untuk melihat rekap pelayanan berdasarkan data yang tersedia.", {
-        columns: ["Data Rekap", "Cakupan", "Keterangan"],
-        actions: [action("Tampilkan Rekap", "rekap-pelayanan/hasil", "primary")],
+      screen("rekap-pelayanan", "rekap-pelayanan", "Rekap pelayanan", "list", "Pilih periode untuk melihat rekap pelayanan berdasarkan data yang tersedia.", {
+        columns: ["Data Rekap", "Cakupan", "Keterangan", "Aksi"],
       }),
-      screen("rekap-pelayanan/hasil", "rekap-pelayanan", "Hasil Rekap Pelayanan", "list", "Rekap ditampilkan sesuai periode yang dipilih.", {
-        columns: ["Jenis Data", "Periode", "Jumlah/Ringkasan"],
+      screen("rekap-pelayanan/hasil", "rekap-pelayanan", "Hasil rekap pelayanan", "list", "Rekap pasien, kunjungan, pelayanan, dan ringkasan keuangan sesuai periode yang dipilih.", {
+        columns: ["Jenis Data", "Jumlah/Ringkasan"],
         actions: [
-          action("Ubah Pilihan", "rekap-pelayanan"),
-          action("Menu Utama", ""),
+          action("Ubah pilihan", "rekap-pelayanan"),
+          action("Menu utama", ""),
         ],
       }),
-      screen("informasi-operasional", "", "Informasi Operasional Klinik", "list", "Pilih kategori informasi klinik yang ingin ditinjau.", {
+      screen("informasi-operasional", "informasi-operasional", "Informasi operasional klinik", "list", "Pilih kategori informasi klinik yang ingin ditinjau.", {
         columns: ["Kategori", "Ringkasan", "Aksi"],
+      }),
+      screen("informasi-operasional/kritik-pasien", "informasi-operasional", "Kritik pasien", "list", "Tinjau masukan pasien dan pilih masukan yang perlu ditindaklanjuti.", {
+        columns: ["Tanggal", "Isi kritik", "Status tindak lanjut", "Aksi"],
         actions: [
-          action("Pilih Kritik", "informasi-operasional/kritik-pasien"),
-          action("Pilih Saran", "informasi-operasional/kritik-pasien"),
+          action("Ubah pilihan", "informasi-operasional"),
+          action("Menu utama", ""),
         ],
       }),
-      screen("informasi-operasional/kritik-pasien", "informasi-operasional", "Kritik Pasien", "list", "Tinjau masukan pasien dan pilih masukan yang perlu ditindaklanjuti.", {
-        columns: ["Tanggal", "Isi Kritik", "Status Tindak Lanjut", "Aksi"],
-        actions: [action("Detail Kritik", "informasi-operasional/kritik-pasien/detail")],
-      }),
-      screen("informasi-operasional/kritik-pasien/detail", "informasi-operasional/kritik-pasien", "Detail Kritik", "form", "Tinjau masukan pasien dan catat tindak lanjut apabila diperlukan.", {
+      screen("informasi-operasional/kritik-pasien/detail", "informasi-operasional", "Detail kritik", "form", "Tinjau masukan pasien dan catat tindak lanjut apabila diperlukan.", {
         fields: ["Status Tindak Lanjut", "Catatan Tindak Lanjut"],
-      }),
-      screen("laporan-klinik", "", "Laporan Klinik", "list", "Pilih jenis laporan dan periode untuk melihat hasil sesuai pilihan.", {
-        columns: ["Pilihan", "Cakupan", "Keterangan"],
-        actions: [action("Tampilkan Laporan", "laporan-klinik/hasil", "primary")],
-      }),
-      screen("laporan-klinik/hasil", "laporan-klinik", "Hasil Laporan Klinik", "list", "Laporan ditampilkan sesuai jenis laporan dan periode yang dipilih.", {
-        columns: ["Jenis Laporan", "Periode", "Ringkasan"],
         actions: [
-          action("Ubah Pilihan", "laporan-klinik"),
-          action("Menu Utama", ""),
+          action("Kembali ke daftar", "informasi-operasional/kritik-pasien"),
+          action("Menu utama", ""),
+        ],
+      }),
+      screen("laporan-klinik", "laporan-klinik", "Laporan klinik", "list", "Pilih jenis laporan dan periode untuk melihat hasil sesuai pilihan.", {
+        columns: ["Pilihan", "Cakupan", "Keterangan", "Aksi"],
+      }),
+      screen("laporan-klinik/hasil", "laporan-klinik", "Hasil laporan klinik", "list", "Laporan ditampilkan sesuai jenis laporan dan periode yang dipilih.", {
+        columns: ["Jenis laporan", "Periode", "Ringkasan"],
+        actions: [
+          action("Ubah pilihan", "laporan-klinik"),
+          action("Menu utama", ""),
         ],
       }),
     ],
@@ -418,7 +419,7 @@ export const portalRoles: PortalRole[] = [
     initials: "PR",
     menu: [
       { label: "Dashboard", section: "" },
-      { label: "Data Dokter", section: "data-dokter" },
+      { label: "Status Kunjungan", section: "status-kunjungan" },
     ],
     screens: [
       screen("", "", "Dashboard Perawat", "dashboard", "Pantau status pelayanan setiap kunjungan.", {

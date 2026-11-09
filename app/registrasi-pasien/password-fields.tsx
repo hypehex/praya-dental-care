@@ -10,20 +10,23 @@ export function PatientRegistrationPasswordFields() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const passwordsDoNotMatch =
     confirmation.length > 0 && password !== confirmation;
+  const passwordTooShort = password.length > 0 && password.length < 8;
 
   return (
     <>
       <div className="registration-password-field">
         <label htmlFor={`${id}-password`}>Kata Sandi</label>
-        <div className="registration-password-input">
+        <div className={`registration-password-input${passwordTooShort ? " is-invalid" : ""}`}>
           <input
             autoComplete="new-password"
+            aria-describedby={`${id}-password-help${passwordTooShort ? ` ${id}-password-length-error` : ""}`}
+            aria-invalid={passwordTooShort}
             id={`${id}-password`}
             maxLength={128}
             minLength={8}
             name="password"
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Buat kata sandi minimal 8 karakter"
+            placeholder="Masukkan kata sandi"
             required
             type={showPassword ? "text" : "password"}
           />
@@ -36,6 +39,8 @@ export function PatientRegistrationPasswordFields() {
             {showPassword ? "Sembunyikan" : "Lihat"}
           </button>
         </div>
+        <span className="registration-password-help" id={`${id}-password-help`}>Minimal 8 karakter.</span>
+        {passwordTooShort ? <span className="registration-password-error" id={`${id}-password-length-error`} role="status">Kata sandi belum mencapai 8 karakter.</span> : null}
       </div>
       <div className="registration-password-field">
         <label htmlFor={`${id}-confirmation`}>Konfirmasi Kata Sandi</label>
@@ -53,7 +58,7 @@ export function PatientRegistrationPasswordFields() {
             minLength={8}
             name="konfirmasi-password"
             onChange={(event) => setConfirmation(event.target.value)}
-            placeholder="Ulangi kata sandi"
+            placeholder="Masukkan kembali kata sandi"
             required
             type={showConfirmation ? "text" : "password"}
           />

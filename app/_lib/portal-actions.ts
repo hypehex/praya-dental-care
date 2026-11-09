@@ -771,7 +771,12 @@ export async function savePortalFormAction(
     const complaint = formText(formData, "Keluhan");
     const result = formText(formData, "Hasil Pemeriksaan");
     const examNote = formText(formData, "Catatan Pemeriksaan");
-    const treatmentIds = formData.getAll("Tindakan").filter((v): v is string => typeof v === "string" && !!v);
+    const treatmentValues = formData.getAll("Tindakan").filter((v): v is string => typeof v === "string" && !!v);
+    const usesOtherTreatment = treatmentValues.includes("__other__");
+    const treatmentIds = treatmentValues.filter((value) => value !== "__other__");
+    const otherTreatmentName = formText(formData, "Tindakan Lainnya");
+    const otherTreatmentDescription = formText(formData, "Deskripsi Tindakan");
+    const otherTreatmentCost = formText(formData, "Biaya Tindakan");
     const diagnosis = formText(formData, "Diagnosis");
     const recordNote = formText(formData, "Catatan");
     if (
@@ -780,6 +785,14 @@ export async function savePortalFormAction(
       !complaint ||
       !result ||
       !diagnosis ||
+      (!treatmentIds.length && !usesOtherTreatment) ||
+      (usesOtherTreatment && (
+        !otherTreatmentName ||
+        otherTreatmentName.length > 100 ||
+        !otherTreatmentDescription ||
+        otherTreatmentDescription.length > 255 ||
+        !/^\d{1,10}(?:\.\d{1,2})?$/.test(otherTreatmentCost)
+      )) ||
       complaint.length > 255 ||
       result.length > 255 ||
       examNote.length > 255 ||
@@ -802,7 +815,7 @@ export async function savePortalFormAction(
         });
         if (!visit) throw new Error("VISIT_NOT_ASSIGNED");
         const services = await transaction.pelayanan.findMany({ where: { id_pelayanan: { in: treatmentIds } } });
-        if (!services.length || services.length !== new Set(treatmentIds).size) throw new Error("VISIT_NOT_ASSIGNED");
+        if (services.length !== new Set(treatmentIds).size) throw new Error("VISIT_NOT_ASSIGNED");
         const manager = await transaction.manajer_klinik.findFirst({ orderBy: { id_manajer: "asc" }, select: { id_manajer: true } });
         if (!manager) throw new Error("VISIT_NOT_ASSIGNED");
 
@@ -821,13 +834,21 @@ export async function savePortalFormAction(
             id_perawat: nurseId,
           },
         });
-        await transaction.tindakan.createMany({ data: services.map((service) => ({
-          id_tindakan: newId("T"), nama_tindakan: service.nama_pelayanan,
-          deskripsi_tindakan: service.deskripsi, biaya: service.biaya, id_pemeriksaan: examId,
-        })) });
+        const treatmentRows = [
+          ...services.map((service) => ({
+            id_tindakan: newId("T"), nama_tindakan: service.nama_pelayanan,
+            deskripsi_tindakan: service.deskripsi, biaya: service.biaya, id_pemeriksaan: examId,
+          })),
+          ...(usesOtherTreatment ? [{
+            id_tindakan: newId("T"), nama_tindakan: otherTreatmentName,
+            deskripsi_tindakan: otherTreatmentDescription,
+            biaya: new Prisma.Decimal(otherTreatmentCost), id_pemeriksaan: examId,
+          }] : []),
+        ];
+        await transaction.tindakan.createMany({ data: treatmentRows });
         await transaction.pembayaran.create({ data: {
           id_pembayaran: newId("B"), id_pasien: visit.id_pasien, id_kunjungan: visit.id_kunjungan,
-          id_manajer: manager.id_manajer, jumlah_pembayaran: services.reduce((total, service) => total.plus(service.biaya), new Prisma.Decimal(0)),
+          id_manajer: manager.id_manajer, jumlah_pembayaran: treatmentRows.reduce((total, treatment) => total.plus(treatment.biaya), new Prisma.Decimal(0)),
           metode_pembayaran: "Belum dipilih", tanggal_pembayaran: today, status_pembayaran: 0,
         } });
         await transaction.rekam_medis.create({
@@ -852,14 +873,11 @@ export async function savePortalFormAction(
 
   if (role === "dokter" && section === "resep/tambah") {
     const recordId = formText(formData, "Rekam Medis");
-    const prescriptionNumber = formText(formData, "Nomor Resep");
     const dateValue = formText(formData, "Tanggal Resep");
     const content = formText(formData, "Isi Resep");
     const prescriptionDate = new Date(`${dateValue}T00:00:00.000Z`);
     if (
       !recordId ||
-      !prescriptionNumber ||
-      prescriptionNumber.length > 20 ||
       Number.isNaN(prescriptionDate.getTime()) ||
       !content ||
       content.length > 255
@@ -877,6 +895,18 @@ export async function savePortalFormAction(
           select: { id_rekam_medis: true },
         });
         if (!record) throw new Error("MEDICAL_RECORD_NOT_ASSIGNED");
+
+        // Kunci transaksi mencegah dua penyimpanan bersamaan memperoleh nomor yang sama.
+        await transaction.$queryRaw`SELECT pg_advisory_xact_lock(5783981)::text AS locked`;
+        const numberedPrescriptions = await transaction.resep.findMany({
+          where: { no_resep: { startsWith: "RSP-" } },
+          select: { no_resep: true },
+        });
+        const latestSequence = numberedPrescriptions.reduce((maximum, item) => {
+          const sequence = Number(item.no_resep.match(/^RSP-(\d{6})$/)?.[1] ?? "0");
+          return Math.max(maximum, sequence);
+        }, 0);
+        const prescriptionNumber = `RSP-${String(latestSequence + 1).padStart(6, "0")}`;
 
         await transaction.resep.create({
           data: {

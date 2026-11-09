@@ -83,11 +83,10 @@ export async function updateClinicalAction(section: string, form: FormData) {
   if (!id) redirect(`${destination}?error=invalid-data`);
   if (section === "resep/edit") {
     const content = value(form, "Isi Resep");
-    const number = value(form, "Nomor Resep");
     const date = value(form, "Tanggal Resep");
-    if (!content || content.length > 255 || !number || number.length > 20 || !validDate(date)) redirect(`${destination}?error=invalid-data`);
+    if (!content || content.length > 255 || !validDate(date)) redirect(`${destination}?error=invalid-data`);
     try {
-      const result = await prisma.resep.updateMany({ where: { id_resep: id, rekam_medis: { pemeriksaan: { id_dokter: identity.profileId } } }, data: { isi_resep: content, no_resep: number, tanggal_resep: new Date(date) } });
+      const result = await prisma.resep.updateMany({ where: { id_resep: id, rekam_medis: { pemeriksaan: { id_dokter: identity.profileId } } }, data: { isi_resep: content, tanggal_resep: new Date(date) } });
       if (!result.count) redirect(`${destination}?error=invalid-data`);
     } catch (e) {
       if (e instanceof Prisma.PrismaClientKnownRequestError) redirect(`${destination}?error=duplicate`);
