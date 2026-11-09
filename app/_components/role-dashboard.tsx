@@ -2,7 +2,7 @@ import { ReviewForm } from "./review-form";
 import { BookingScheduleFields } from "./booking-schedule-fields";
 import { DoctorTreatmentFields } from "./doctor-treatment-fields";
 import { NurseStatusFields } from "./nurse-status-fields";
-import { saveCatalogAction, deleteWorkflowAction, updateClinicalAction, submitPaymentAction, verifyPaymentAction } from "../_lib/module4-actions";
+import { saveCatalogAction, deleteWorkflowAction, updateClinicalAction, submitPaymentAction, verifyPaymentAction } from "../_lib/clinical-actions";
 import Image from "next/image";
 import Link from "next/link";
 import type { PortalRole, PortalScreen } from "../_lib/portal-config";
@@ -456,7 +456,7 @@ function PortalPageContent({
           <div className="owner-dashboard-metrics">
             {[
               ["Rekap Pelayanan", dashboard?.visitCount ?? 0, "kunjungan", "rekap-pelayanan"],
-              ["Informasi Pelayanan", dashboard?.pendingFeedbackCount ?? 0, "perlu ditinjau", "informasi-operasional"],
+              ["Informasi Operasional", dashboard?.pendingFeedbackCount ?? 0, "perlu ditinjau", "informasi-operasional"],
               ["Laporan Klinik", dashboard?.examinationCount ?? 0, "pemeriksaan", "laporan-klinik"],
             ].map(([label, count, unit, section]) => (
               <Link className="patient-metric-card owner-dashboard-metric" href={portalHref(role.slug, String(section))} key={String(label)}>
@@ -1435,7 +1435,7 @@ function PortalPageContent({
             <Link className="portal-button portal-button-primary" href={parentHref}>Lihat Daftar Tagihan Terbaru</Link>
           </div>
         ) : (
-        <div className="portal-state-card">
+        <div className={`portal-state-card portal-${screen.kind}-card role-${role.slug}`}>
           {dataError ? <p role="alert">{dataError}</p> : null}
           {rows.length ? (
             <dl className="portal-record">

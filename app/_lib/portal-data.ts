@@ -609,16 +609,12 @@ export async function loadPortalRows(
   }
 
   if (role.slug === "owner" && section === "informasi-operasional") {
+    const feedbackCount = await prisma.kritik_saran.count({ where: { id_owner: identity.profileId } });
     return [
       {
-        id: "kritik",
-        cells: ["Kritik", "Ringkasan data pasien", "Pilih"],
-        detailHref: `${portalHref(role.slug, "informasi-operasional/kritik-pasien")}?kategori=Kritik`,
-      },
-      {
-        id: "saran",
-        cells: ["Saran", "Ringkasan data pasien", "Pilih"],
-        detailHref: `${portalHref(role.slug, "informasi-operasional/kritik-pasien")}?kategori=Saran`,
+        id: "kritik-saran",
+        cells: ["Kritik & Saran", `${feedbackCount} masukan pasien`, "Pilih"],
+        detailHref: portalHref(role.slug, "informasi-operasional/kritik-pasien"),
       },
     ];
   }

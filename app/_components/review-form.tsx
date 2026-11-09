@@ -19,7 +19,7 @@ export function ReviewForm({ action, children, className = "portal-form", saveLa
   }
   return <form action={action} className={className} onSubmit={reviewSubmission}>
     <div hidden={!!review} className="portal-form-fields">{children}</div>
-    {review ? <div className="portal-state-card" aria-live="polite">
+    {review ? <div className="portal-state-card portal-review-card" aria-live="polite">
       <h2>Periksa Kembali</h2>
       <dl className="portal-record">{review.map(([key, value], index) => <div key={`${key}-${index}`}><dt>{key}</dt><dd>{value || "-"}</dd></div>)}</dl>
       <button className="portal-button portal-button-secondary" type="button" onClick={() => setReview(null)}>Ubah Isian</button>

@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   title: "Praya Dental Care",
   description:
     "Senyum Sehat, Hidup Lebih Bahagia bersama Praya Dental Care.",
+  icons: {
+    icon: "/figma/praya-logo.png",
+    shortcut: "/figma/praya-logo.png",
+    apple: "/figma/praya-logo.png",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
